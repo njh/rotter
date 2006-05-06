@@ -1,0 +1,10 @@
+Rotter TODO List
+================
+
+In order of priority:
+ 
+ - Support other formats?
+ 	- MP3/LAME
+ 	- Ogg Vorbis
+ 	- PCM audio/libsndfile
+ 
