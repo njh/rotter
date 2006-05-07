@@ -24,13 +24,15 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
-
+#include <time.h>
 #include <getopt.h>
 #include <errno.h>
 #include <stdarg.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "rotter.h"
 #include "config.h"
@@ -42,11 +44,13 @@ jack_port_t *inport[2] = {NULL, NULL};
 jack_ringbuffer_t *ringbuffer[2] = {NULL, NULL};
 jack_client_t *client = NULL;
 
-int quiet = 0;
-int verbose = 0;
-int channels = DEFAULT_CHANNELS;
-float rb_duration = DEFAULT_RB_LEN;
-int running = 1;
+int quiet = 0;							// Only display error messages
+int verbose = 0;						// Increase number of logging messages
+int channels = DEFAULT_CHANNELS;		// Number of input channels
+float rb_duration = DEFAULT_RB_LEN;		// Duration of ring buffer
+char *root_directory = NULL;			// Root directory of archives
+time_t file_start = 0;					// Start time of the open file
+int running = 1;						// True while still running
 
 
 
@@ -62,8 +66,7 @@ int callback_jack(jack_nframes_t nframes, void *arg)
         char *buf  = (char*)jack_port_get_buffer(inport[c], nframes);
         size_t len = jack_ringbuffer_write(ringbuffer[c], buf, to_write);
         if (len < to_write) {
-            fprintf(stderr, "Failed to write to ring ruffer.\n");
-            running = 0;
+            rotter_fatal("Failed to write to ring ruffer.");
             return 1;
          }
 	}
@@ -78,26 +81,26 @@ int callback_jack(jack_nframes_t nframes, void *arg)
 static
 void shutdown_callback_jack(void *arg)
 {
-	fprintf(stderr, "Warning: Rotter quitting because jackd is shutting down.\n" );
-	running = 0;
+	rotter_error("Rotter quitting because jackd is shutting down." );
 }
 
 
-void connect_jack_port( jack_port_t *port, const char* in )
+static
+void connect_jack_port( const char* out, jack_port_t *port )
 {
-	const char* out = jack_port_name( port );
+	const char* in = jack_port_name( port );
 	int err;
 		
-	if (!quiet) printf("Connecting %s to %s\n", out, in);
+	rotter_info("Connecting '%s' to '%s'", out, in);
 	
 	if ((err = jack_connect(client, out, in)) != 0) {
-		fprintf(stderr, "connect_jack_port(): failed to jack_connect() ports: %d\n",err);
-		exit(1);
+		rotter_fatal("connect_jack_port(): failed to jack_connect() ports: %d",err);
 	}
 }
 
 
 // crude way of automatically connecting up jack ports
+static
 void autoconnect_jack_ports( jack_client_t* client )
 {
 	const char **all_ports;
@@ -105,17 +108,16 @@ void autoconnect_jack_ports( jack_client_t* client )
 	int i;
 
 	// Get a list of all the jack ports
-	all_ports = jack_get_ports(client, NULL, NULL, JackPortIsInput);
+	all_ports = jack_get_ports(client, NULL, NULL, JackPortIsOutput);
 	if (!all_ports) {
-		fprintf(stderr, "autoconnect_jack_ports(): jack_get_ports() returned NULL.");
-		exit(1);
+		rotter_fatal("autoconnect_jack_ports(): jack_get_ports() returned NULL.");
 	}
 	
 	// Step through each port name
 	for (i = 0; all_ports[i]; ++i) {
 		
 		// Connect the port
-		connect_jack_port( inport[ch], all_ports[i] );
+		connect_jack_port( all_ports[i], inport[ch] );
 		
 		// Found enough ports ?
 		if (++ch >= channels) break;
@@ -134,37 +136,32 @@ void init_jack( const char* client_name, jack_options_t jack_opt )
 
 	// Register with Jack
 	if ((client = jack_client_open(client_name, jack_opt, &status)) == 0) {
-		fprintf(stderr, "Failed to start jack client: 0x%x\n", status);
-		exit(1);
+		rotter_fatal("Failed to start jack client: 0x%x", status);
 	}
-	if (!quiet) printf("JACK client registered as '%s'.\n", jack_get_client_name( client ) );
+	rotter_info( "JACK client registered as '%s'.", jack_get_client_name( client ) );
 
 
 	// Create our input port(s)
 	if (channels==1) {
 		if (!(inport[0] = jack_port_register(client, "mono", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0))) {
-			fprintf(stderr, "Cannot register mono input port.\n");
-			exit(1);
+			rotter_fatal("Cannot register mono input port.");
 		}
 	} else {
 		if (!(inport[0] = jack_port_register(client, "left", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0))) {
-			fprintf(stderr, "Cannot register left input port.\n");
-			exit(1);
+			rotter_fatal("Cannot register left input port.");
 		}
 		
 		if (!(inport[1] = jack_port_register(client, "right", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0))) {
-			fprintf(stderr, "Cannot register left input port.\n");
-			exit(1);
+			rotter_fatal( "Cannot register left input port.");
 		}
 	}
 	
 	// Create ring buffers
 	ringbuffer_size = jack_get_sample_rate( client ) * rb_duration * sizeof(float);
-	if (verbose) printf("Size of the ring buffers is %2.2f seconds (%d bytes).\n", rb_duration, (int)ringbuffer_size );
-	for(i=0; i<2; i++) {
+	rotter_debug("Size of the ring buffers is %2.2f seconds (%d bytes).", rb_duration, (int)ringbuffer_size );
+	for(i=0; i<channels; i++) {
 		if (!(ringbuffer[i] = jack_ringbuffer_create( ringbuffer_size ))) {
-			fprintf(stderr, "Cannot create ringbuffer.\n");
-			exit(1);
+			rotter_fatal("Cannot create ringbuffer.");
 		}
 	}
 	
@@ -194,23 +191,248 @@ static void
 termination_handler (int signum)
 {
 	switch(signum) {
-		case SIGHUP:	fprintf(stderr, "Got hangup signal.\n"); break;
-		case SIGTERM:	fprintf(stderr, "Got termination signal.\n"); break;
-		case SIGINT:	fprintf(stderr, "Got interupt signal.\n"); break;
+		case SIGHUP:	rotter_info("Got hangup signal."); break;
+		case SIGTERM:	rotter_info("Got termination signal."); break;
+		case SIGINT:	rotter_info("Got interupt signal."); break;
 	}
 	
-	// Set state to Quit
-	//set_state( MADJACK_STATE_QUIT );
-	
 	signal(signum, termination_handler);
+	
+	// Signal the main thead to stop
+	running = 0;
 }
 
 
 
+void rotter_log( RotterLogLevel level, const char* fmt, ... )
+{
+	time_t t=time(NULL);
+	char time_str[32];
+	va_list args;
+	
+	
+	// Display the message level
+	if (level == ROTTER_DEBUG ) {
+		if (!verbose) return;
+		fprintf( stderr, "[DEBUG]  " );
+	} else if (level == ROTTER_INFO ) {
+		if (quiet) return;
+		fprintf( stderr, "[INFO]   " );
+	} else if (level == ROTTER_ERROR ) {
+		fprintf( stderr, "[ERROR]  " );
+	} else if (level == ROTTER_FATAL ) {
+		fprintf( stderr, "[FATAL]  " );
+	} else {
+		fprintf( stderr, "[UNKNOWN]" );
+	}
+
+	// Display timestamp
+	ctime_r( &t, time_str );
+	time_str[strlen(time_str)-1]=0; // remove \n
+	fprintf( stderr, "%s  ", time_str );
+	
+	// Display the error message
+	va_start( args, fmt );
+	vfprintf( stderr, fmt, args );
+	fprintf( stderr, "\n" );
+	va_end( args );
+	
+	// If fatal then exit
+	if (level == ROTTER_FATAL) exit( -1 );
+	
+}
+
+
+
+// Write an ID3v1 tag to a file handle
+void write_id3v1( FILE *file )
+{
+	struct tm tm;
+	id3v1_t id3;
+	
+	if (file==NULL) return;
+	
+	// Zero the ID3 data structure
+	bzero( &id3, sizeof( id3v1_t )); 
+
+	// Get a breakdown of the time recording started
+	localtime_r( &file_start, &tm );
+
+	
+	// Header
+	id3.tag[0] = 'T';
+	id3.tag[1] = 'A';
+	id3.tag[2] = 'G';
+	
+	// Title
+	snprintf( id3.comment, sizeof(id3.comment), "Recorded %4.4d-%2.2d-%2.2d %2.2d:%2.2d",
+				tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min );
+
+	// Artist = hostname
+	snprintf( id3.artist, sizeof(id3.artist), "hostname" );
+
+	// Album
+	
+	
+	// Year
+	snprintf( id3.year, sizeof(id3.year), "%4.4d", tm.tm_year+1900 );
+
+	// Comment
+	snprintf( id3.comment, sizeof(id3.comment), "Created by %s v%s",
+					PACKAGE_NAME, PACKAGE_VERSION );
+	
+	// Deliberately invalid genre
+	id3.genre = 255;
+
+	// Now write it to file
+	if (fwrite( &id3, sizeof(id3v1_t), 1, file) != 1) {
+		rotter_error( "Warning: failed to write ID3v1 tag." );
+	}
+}
+
+
+// Returns unix timestamp for the start of this hour
+static time_t start_of_hour()
+{
+	struct tm tm;
+	time_t now = time(NULL);
+	
+	// Break down the time
+	localtime_r( &now, &tm );
+
+	// Set minutes and seconds to 0
+	tm.tm_min = 0;
+	tm.tm_sec = 0;
+	
+	return mktime( &tm );
+}
+
+static int directory_exists(const char * filepath)
+{
+	struct stat s;
+	int i = stat ( filepath, &s );
+	if ( i == 0 )
+	{
+		if (s.st_mode & S_IFDIR) {
+			// Yes, a directory
+			return 1;
+		} else {
+			// Not a directory
+			rotter_error( "Not a directory: %s", filepath );
+			return 0;
+		}
+	}
+	
+	return 0;
+}
+
+
+
+static int mkdir_p( const char* dir )
+{
+	int result = 0;
+
+	if (directory_exists( dir )) {
+		return 0;
+	}
+
+	if (mkdir(dir, DEFAULT_DIR_MODE) < 0) {
+		if (errno == ENOENT) {
+			// ENOENT (a parent directory doesn't exist)
+			char* parent = strdup( dir );
+			int i;
+			
+			// Create parent directories recursively
+			for(i=strlen(parent); i>0; i--) {
+				if (parent[i]=='/') {
+					parent[i]=0;
+					result = mkdir_p( parent );
+					break;
+				}
+			}
+			
+			free(parent);
+			
+			// Try again to create the directory
+			if (result==0) {
+				result = mkdir(dir, DEFAULT_DIR_MODE);
+			}
+			
+		} else {
+			result = -1;
+		}
+	}
+	
+	return result;
+}
+
+
+static char * time_to_filepath( time_t clock, const char* suffix )
+{
+	struct tm tm;
+	char* filepath = malloc( MAX_FILEPATH_LEN );
+	
+	
+	localtime_r( &clock, &tm );
+	
+	// Make sure the parent directory exists
+	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
+				root_directory, tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour );
+
+	if (mkdir_p( filepath ))
+		rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
+
+
+	// Create the full file path
+	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/archive%s",
+				root_directory, tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, suffix );
+
+	return filepath;
+}
+
+
+
+static void main_loop( encoder_funcs_t* encoder )
+{
+	
+	while( running ) {
+		time_t hour_start = start_of_hour();
+		
+
+		// Time to change file?
+		if (file_start != hour_start) {
+			char* filepath = time_to_filepath( hour_start, encoder->file_suffix );
+			rotter_info( "Starting new archive file: %s", filepath );
+			
+			// Close the old file
+			encoder->close();
+			
+			// Open the new file
+			if (encoder->open( filepath )) break;
+			
+			file_start = hour_start;
+			free(filepath);
+		}
+		
+
+		// Encode a frame of audio
+		int result = encoder->encode();
+		if (result == 0) {
+			// Sleep for 1/4 of the ringbuffer duration
+			usleep( (rb_duration/4) * 1000000 );
+		} else if (result < 0) {
+			rotter_fatal("Shutting down, due to encoding error.");
+			break;
+		}
+		
+	}
+
+}
+
+
 
 // Display how to use this program
-static
-void usage()
+static void usage()
 {
 	printf("%s version %s\n\n", PACKAGE_NAME, PACKAGE_VERSION);
 	printf("Usage: %s [options] <directory>\n", PACKAGE_NAME);
@@ -226,16 +448,15 @@ void usage()
 }
 
 
-
 int main(int argc, char *argv[])
 {
 	int autoconnect = 0;
-	char *root_directory = NULL;
 	jack_options_t jack_opt = JackNullOption;
 	char *client_name = DEFAULT_CLIENT_NAME;
 	char *connect_left = NULL;
 	char *connect_right = NULL;
 	int bitrate = DEFAULT_BITRATE;
+	encoder_funcs_t* encoder = NULL;
 	int opt;
 
 	// Make STDOUT unbuffered
@@ -260,13 +481,13 @@ int main(int argc, char *argv[])
 	
 	// Validate parameters
 	if (quiet && verbose) {
-    	fprintf(stderr, "Can't be quiet and verbose at the same time.\n");
+    	rotter_error("Can't be quiet and verbose at the same time.");
     	usage();
 	}
 
 	// Check the number of channels
 	if (channels!=1 && channels!=2) {
-		fprintf(stderr, "Number of channels should be either 1 or 2.\n");
+		rotter_error("Number of channels should be either 1 or 2.");
 		usage();
 	}
 
@@ -274,25 +495,35 @@ int main(int argc, char *argv[])
     argc -= optind;
     argv += optind;
     if (argc!=1) {
-    	fprintf(stderr, "%s requires a root directory argument.\n", PACKAGE_NAME);
+    	rotter_error("%s requires a root directory argument.", PACKAGE_NAME);
     	usage();
 	} else {
 		root_directory = argv[0];
-		if (verbose) fprintf(stderr, "Root directory: %s\n", root_directory);
+		if (root_directory[strlen(root_directory)-1] == '/')
+			root_directory[strlen(root_directory)-1] = 0;
+			
+		if (directory_exists(root_directory)) {
+			rotter_debug("Root directory: %s", root_directory);
+		} else {
+			rotter_fatal("Root directory does not exist: %s", root_directory);
+		}
 	}
+
 
 	// Initialise JACK
 	init_jack( client_name, jack_opt );
+
 	
 	// Initialise encoder
-	init_twolame( channels, bitrate );
-
+	encoder = init_twolame( channels, bitrate );
+	if (encoder==NULL) {
+		rotter_debug("Failed to initialise encoder.");
+		finish_jack();
+		exit(-1);
+	}
 
 	// Activate JACK
-	if (jack_activate(client)) {
-		fprintf(stderr, "Cannot activate JACK client.\n");
-		exit(1);
-	}
+	if (jack_activate(client)) rotter_fatal("Cannot activate JACK client.");
 
 	// Setup signal handlers
 	signal(SIGTERM, termination_handler);
@@ -302,13 +533,19 @@ int main(int argc, char *argv[])
 	
 	// Auto-connect our input ports ?
 	if (autoconnect) autoconnect_jack_ports( client );
-	if (connect_left) connect_jack_port( inport[0], connect_left );
-	if (connect_right && channels == 2) connect_jack_port( inport[1], connect_right );
+	if (connect_left) connect_jack_port( connect_left, inport[0] );
+	if (connect_right && channels == 2) connect_jack_port( connect_right, inport[1] );
 
 
-	// Encode stuff
-	sleep( 10 );
+	
+	main_loop( encoder );
+	
+	
+	// Close the output file
+	encoder->close();
 
+	// Shut down encoder
+	encoder->shutdown();
 
 	// Clean up JACK
 	finish_jack();

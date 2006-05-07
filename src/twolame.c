@@ -28,139 +28,227 @@
 #include <unistd.h>
 #include <signal.h>
 
-#include <jack/jack.h>
-#include <jack/ringbuffer.h>
 #include <getopt.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <twolame.h>
 
 #include "rotter.h"
 #include "config.h"
 
 
 
-int init_twolame( int channels, int bitrate )
+// ------ Globals ---------
+twolame_options *twolame_opts = NULL;
+jack_default_audio_sample_t *pcm_buffer[2]= {NULL,NULL};
+unsigned char *mpeg_buffer=NULL;
+FILE* output_file = NULL;
+
+
+#define SAMPLES_PER_FRAME 		(1152)
+
+
+// Encode a frame of audio
+static int encode()
 {
-	twolame_options *twolame_opts = twolame_init();
-	if (twolame_opts==NULL) {
-		fprintf(stderr, "TwoLAME error: failed to initialise\n.");
+	jack_nframes_t samples = SAMPLES_PER_FRAME;
+	size_t desired = samples * sizeof( jack_default_audio_sample_t );
+	int channels = twolame_get_num_channels(twolame_opts);
+	int bytes_read=0, bytes_encoded=0, bytes_written=0;
+	int c=0;
+	
+	// Check that the output file is open
+	if (output_file==NULL) {
+		rotter_error( "Warning: output file isn't open, while trying to encode.");
+		// Try again later
+		return 0;
+	
+	}
+	
+	// Is the enough in the ring buffer?
+	if (jack_ringbuffer_read_space( ringbuffer[0] ) < desired) {
+		// Try again later
+		return 0;
+	}
+	
+
+	// Take audio out of the ring buffer
+    for (c=0; c<channels; c++)
+    {    
+ 		// Ensure the temporary buffer is big enough
+		pcm_buffer[c] = (jack_default_audio_sample_t*)realloc(pcm_buffer[c], desired );
+		if (!pcm_buffer[c]) rotter_fatal( "realloc on tmp_buffer failed" );
+
+		// Copy frames from ring buffer to temporary buffer
+        bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)pcm_buffer[c], desired);
+		if (bytes_read != desired) {
+			rotter_fatal( "Failed to read desired number of bytes from ringbuffer." );
+		}
+    }
+
+
+	// Encode it
+	bytes_encoded = twolame_encode_buffer_float32( twolame_opts, 
+						pcm_buffer[0], pcm_buffer[1],
+						samples, mpeg_buffer, WRITE_BUFFER_SIZE );
+	if (bytes_encoded<=0) {
+		rotter_error( "Warning: failed to encode any audio.");
 		return -1;
 	}
 	
-	if ( 0 > twolame_set_num_channels( twolame_opts, channels ) ) {
-		fprintf(stderr, "TwoLAME error: failed to set number of channels\n.");
-		return -1;
-    }
-
-	if ( 0 > twolame_set_in_samplerate( twolame_opts, jack_get_sample_rate( client ) )) {
-		fprintf(stderr, "TwoLAME error: failed to set input samplerate\n.");
-		return -1;
-    }
-
-	if ( 0 > twolame_set_out_samplerate( twolame_opts, jack_get_sample_rate( client ) )) {
-		fprintf(stderr, "TwoLAME error: failed to set output samplerate\n.");
-		return -1;
-    }
-
-	if ( 0 > twolame_set_brate( twolame_opts, bitrate) ) {
-		fprintf(stderr, "TwoLAME error: failed to set bitrate\n.");
+	
+	// Write it to disk
+	bytes_written = fwrite( mpeg_buffer, 1, bytes_encoded, output_file);
+	if (bytes_written != bytes_encoded) {
+		rotter_error( "Warning: failed to write encoded audio to disk.");
 		return -1;
 	}
+	
 
-	if ( 0 > twolame_init_params( twolame_opts ) ) {
-		fprintf(stderr, "TwoLAME error: failed to initialize parameters\n.");
+	// Success
+	return bytes_written;
+
+}
+
+
+
+static int close_file()
+{
+	if (output_file==NULL) return -1;
+	
+	// Write ID3v1 tags
+	write_id3v1( output_file );
+
+
+	rotter_debug("Closing MP2 output file.");
+
+	if (fclose(output_file)) {
+		rotter_error( "Failed to close output file: %s", strerror(errno) );
 		return -1;
-    }
-    
-    if (verbose) twolame_print_config( twolame_opts );
+	}
+	
+	// File is now closed
+	output_file=NULL;
 
 	// Success
 	return 0;
 }
 
 
-
-int encode_twolame()
+static int open_file( char* filepath )
 {
 
-	/*
+	rotter_debug("Opening MP2 output file: %s", filepath);
+	if (output_file) {
+		rotter_error("Warning: already open while opening output file."); 
+		close_file();
+	}
+
+	output_file = fopen( filepath, "ab" );
+	if (output_file==NULL) {
+		rotter_error( "Failed to open output file: %s", strerror(errno) );
+		return -1;
+	}
+
+	// Success
+	return 0;
+}
+
+
+static void shutdown()
+{
+
+	rotter_debug("Closing down TwoLAME encoder.");
+	twolame_close( &twolame_opts );
+
+	if (pcm_buffer[0]) {
+		free(pcm_buffer[0]);
+		pcm_buffer[0]=NULL;
+	}
 	
-	    jack_nframes_t samples         = len / 2 / getChannel();
-    jack_nframes_t samples_read[2] = {0,0};
-    short        * output          = (short*)buf;
-    unsigned int c, n;
-
-    if ( !isOpen() ) {
-        return 0;
-    }
-
-
-    // Ensure the temporary buffer is big enough
-    tmp_buffer = (jack_default_audio_sample_t*)realloc(tmp_buffer,
-                             samples * sizeof( jack_default_audio_sample_t ) );
-    if (!tmp_buffer) {
-        throw Exception( __FILE__, __LINE__, "realloc on tmp_buffer failed");
-    }
-
-
-    for (c=0; c<getChannel(); c++)
-    {    
-        // Copy frames from ring buffer to temporary buffer
-        // and then convert samples to output buffer
-        int bytes_read = jack_ringbuffer_read(rb[c],
-                                             (char*)tmp_buffer,
-                              samples * sizeof( jack_default_audio_sample_t ));
-        samples_read[c] = bytes_read / sizeof( jack_default_audio_sample_t );
-        
-
-        // Convert samples from float to short and put in output buffer
-        for(n=0; n<samples_read[c]; n++) {
-            int tmp = lrintf(tmp_buffer[n] * 32768.0f);
-            if (tmp > SHRT_MAX) {
-                output[n*getChannel()+c] = SHRT_MAX;
-            } else if (tmp < SHRT_MIN) {
-                output[n*getChannel()+c] = SHRT_MIN;
-            } else {
-                output[n*getChannel()+c] = (short) tmp;
-            }
-        }
-    }
-
-    // Didn't get as many samples as we wanted ?
-    if (getChannel() == 2 && samples_read[0] != samples_read[1]) {
-        Reporter::reportEvent( 2,
-                              "Warning: Read a different number of samples "
-                              "for left and right channels");
-    }
-
-    // Return the number of bytes put in the output buffer
-    return samples_read[0] * 2 * getChannel();
-    
-   */
-
-/*
-	int twolame_encode_buffer(
- twolame_options *glopts,   // the set of options you're using
- const short int leftpcm[], // the left and right audio channels
- const short int rightpcm[],
- int num_samples,           // the number of samples in each channel
- unsigned char *mp2buffer,  // a pointer to a buffer for the MP2 audio data
-                            // NB User must allocate space!
- int mp2buffer_size);       // The size of the mp2buffer that the user allocated
- int *mp2fill_size);
-*/
-
-
+	if (pcm_buffer[1]) {
+		free(pcm_buffer[1]);
+		pcm_buffer[1]=NULL;
+	}
+	
+	if (mpeg_buffer) {
+		free(mpeg_buffer);
+		mpeg_buffer=NULL;
+	}
+	
+	if (output_file) close_file();
 
 }
 
 
-int close_twolame()
+encoder_funcs_t* init_twolame( int channels, int bitrate )
 {
-	// twolame_close( twolame_opts );
+	encoder_funcs_t* funcs = NULL;
 
+	twolame_opts = twolame_init();
+	if (twolame_opts==NULL) {
+		rotter_error("TwoLAME error: failed to initialise.");
+		return NULL;
+	}
+	
+	if ( 0 > twolame_set_num_channels( twolame_opts, channels ) ) {
+		rotter_error("TwoLAME error: failed to set number of channels.");
+		return NULL;
+    }
+
+	if ( 0 > twolame_set_in_samplerate( twolame_opts, jack_get_sample_rate( client ) )) {
+		rotter_error("TwoLAME error: failed to set input samplerate.");
+		return NULL;
+    }
+
+	if ( 0 > twolame_set_out_samplerate( twolame_opts, jack_get_sample_rate( client ) )) {
+		rotter_error("TwoLAME error: failed to set output samplerate.");
+		return NULL;
+    }
+
+	if ( 0 > twolame_set_brate( twolame_opts, bitrate) ) {
+		rotter_error("TwoLAME error: failed to set bitrate.");
+		return NULL;
+	}
+
+	if ( 0 > twolame_init_params( twolame_opts ) ) {
+		rotter_error("TwoLAME error: failed to initialize parameters.");
+		return NULL;
+    }
+    
+
+	rotter_info( "Encoding using libtwolame version %s.", get_twolame_version() );
+	rotter_debug( "  Input: %d Hz, %d channels",
+						twolame_get_in_samplerate(twolame_opts),
+						twolame_get_num_channels(twolame_opts));
+	rotter_debug( "  Output: %s Layer 2, %d kbps, %s",
+						twolame_get_version_name(twolame_opts),
+						twolame_get_bitrate(twolame_opts),
+						twolame_get_mode_name(twolame_opts));
+
+	// Allocate memory for encoded audio
+	mpeg_buffer = malloc( WRITE_BUFFER_SIZE );
+	if ( mpeg_buffer==NULL ) {
+		rotter_error( "Failed to allocate memery for encoded audio." );
+		return NULL;
+    }
+
+	// Allocate memory for callback functions
+	funcs = calloc( 1, sizeof(encoder_funcs_t) );
+	if ( funcs==NULL ) {
+		rotter_error( "Failed to allocate memery for encoder callback functions structure." );
+		return NULL;
+    }
+	
+
+	funcs->file_suffix = ".mp2";
+	funcs->open = open_file;
+	funcs->close = close_file;
+	funcs->encode = encode;
+	funcs->shutdown = shutdown;
+
+
+	return funcs;
 }
-
-
 
 
