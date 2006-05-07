@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run this to set up the build system: configure, makefiles, etc.
 
-package="MadJack"
+package="rotter"
 
 
 srcdir=`dirname $0`
