@@ -217,27 +217,27 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... )
 	// Display the message level
 	if (level == ROTTER_DEBUG ) {
 		if (!verbose) return;
-		fprintf( stderr, "[DEBUG]  " );
+		printf( "[DEBUG]  " );
 	} else if (level == ROTTER_INFO ) {
 		if (quiet) return;
-		fprintf( stderr, "[INFO]   " );
+		printf( "[INFO]   " );
 	} else if (level == ROTTER_ERROR ) {
-		fprintf( stderr, "[ERROR]  " );
+		printf( "[ERROR]  " );
 	} else if (level == ROTTER_FATAL ) {
-		fprintf( stderr, "[FATAL]  " );
+		printf( "[FATAL]  " );
 	} else {
-		fprintf( stderr, "[UNKNOWN]" );
+		printf( "[UNKNOWN]" );
 	}
 
 	// Display timestamp
 	ctime_r( &t, time_str );
 	time_str[strlen(time_str)-1]=0; // remove \n
-	fprintf( stderr, "%s  ", time_str );
+	printf( "%s  ", time_str );
 	
 	// Display the error message
 	va_start( args, fmt );
-	vfprintf( stderr, fmt, args );
-	fprintf( stderr, "\n" );
+	vprintf( fmt, args );
+	printf( "\n" );
 	va_end( args );
 	
 	// If fatal then exit
