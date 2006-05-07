@@ -333,7 +333,7 @@ static char * time_to_filepath_flat( time_t clock, const char* suffix )
 	
 	// Create the full file path
 	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d-%2.2d%s",
-				root_directory, tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, suffix );
+				root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
 
 	return filepath;
 }
@@ -349,7 +349,7 @@ static char * time_to_filepath_hierarchy( time_t clock, const char* suffix )
 	
 	// Make sure the parent directories exists
 	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
-				root_directory, tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour );
+				root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour );
 
 	if (mkdir_p( filepath ))
 		rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
@@ -357,7 +357,7 @@ static char * time_to_filepath_hierarchy( time_t clock, const char* suffix )
 
 	// Create the full file path
 	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/archive%s",
-				root_directory, tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, suffix );
+				root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
 
 	return filepath;
 }
