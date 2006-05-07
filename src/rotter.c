@@ -30,12 +30,14 @@
 #include <getopt.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <limits.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include "rotter.h"
 #include "config.h"
+
 
 
 
@@ -46,6 +48,7 @@ jack_client_t *client = NULL;
 
 int quiet = 0;							// Only display error messages
 int verbose = 0;						// Increase number of logging messages
+int hierarchy = 0;						// Flat files or folder hierarchy ?
 int channels = DEFAULT_CHANNELS;		// Number of input channels
 float rb_duration = DEFAULT_RB_LEN;		// Duration of ring buffer
 char *root_directory = NULL;			// Root directory of archives
@@ -244,52 +247,6 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... )
 
 
 
-// Write an ID3v1 tag to a file handle
-void write_id3v1( FILE *file )
-{
-	struct tm tm;
-	id3v1_t id3;
-	
-	if (file==NULL) return;
-	
-	// Zero the ID3 data structure
-	bzero( &id3, sizeof( id3v1_t )); 
-
-	// Get a breakdown of the time recording started
-	localtime_r( &file_start, &tm );
-
-	
-	// Header
-	id3.tag[0] = 'T';
-	id3.tag[1] = 'A';
-	id3.tag[2] = 'G';
-	
-	// Title
-	snprintf( id3.comment, sizeof(id3.comment), "Recorded %4.4d-%2.2d-%2.2d %2.2d:%2.2d",
-				tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min );
-
-	// Artist = hostname
-	snprintf( id3.artist, sizeof(id3.artist), "hostname" );
-
-	// Album
-	
-	
-	// Year
-	snprintf( id3.year, sizeof(id3.year), "%4.4d", tm.tm_year+1900 );
-
-	// Comment
-	snprintf( id3.comment, sizeof(id3.comment), "Created by %s v%s",
-					PACKAGE_NAME, PACKAGE_VERSION );
-	
-	// Deliberately invalid genre
-	id3.genre = 255;
-
-	// Now write it to file
-	if (fwrite( &id3, sizeof(id3v1_t), 1, file) != 1) {
-		rotter_error( "Warning: failed to write ID3v1 tag." );
-	}
-}
-
 
 // Returns unix timestamp for the start of this hour
 static time_t start_of_hour()
@@ -367,7 +324,22 @@ static int mkdir_p( const char* dir )
 }
 
 
-static char * time_to_filepath( time_t clock, const char* suffix )
+static char * time_to_filepath_flat( time_t clock, const char* suffix )
+{
+	struct tm tm;
+	char* filepath = malloc( MAX_FILEPATH_LEN );
+	
+	localtime_r( &clock, &tm );
+	
+	// Create the full file path
+	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d-%2.2d%s",
+				root_directory, tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, suffix );
+
+	return filepath;
+}
+
+
+static char * time_to_filepath_hierarchy( time_t clock, const char* suffix )
 {
 	struct tm tm;
 	char* filepath = malloc( MAX_FILEPATH_LEN );
@@ -375,7 +347,7 @@ static char * time_to_filepath( time_t clock, const char* suffix )
 	
 	localtime_r( &clock, &tm );
 	
-	// Make sure the parent directory exists
+	// Make sure the parent directories exists
 	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
 				root_directory, tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour );
 
@@ -396,12 +368,18 @@ static void main_loop( encoder_funcs_t* encoder )
 {
 	
 	while( running ) {
-		time_t hour_start = start_of_hour();
+		time_t this_hour = start_of_hour();
 		
 
 		// Time to change file?
-		if (file_start != hour_start) {
-			char* filepath = time_to_filepath( hour_start, encoder->file_suffix );
+		if (file_start != this_hour) {
+			char* filepath;
+			if (hierarchy) {
+				filepath = time_to_filepath_hierarchy( this_hour, encoder->file_suffix );
+			} else {
+				filepath = time_to_filepath_flat( this_hour, encoder->file_suffix );
+			}
+			
 			rotter_info( "Starting new archive file: %s", filepath );
 			
 			// Close the old file
@@ -410,7 +388,7 @@ static void main_loop( encoder_funcs_t* encoder )
 			// Open the new file
 			if (encoder->open( filepath )) break;
 			
-			file_start = hour_start;
+			file_start = this_hour;
 			free(filepath);
 		}
 		
@@ -440,6 +418,7 @@ static void usage()
 	printf("   -b <bitrate>  Bitrate of recording\n");
 	printf("   -c <channels> Number of channels\n");
 	printf("   -n <name>     Name for this JACK client\n");
+	printf("   -H            Create folder hierarchy instead of flat files\n");
 	printf("   -j            Don't automatically start jackd\n");
 	printf("   -v            Enable verbose mode\n");
 	printf("   -q            Enable quiet mode\n");
@@ -463,7 +442,7 @@ int main(int argc, char *argv[])
 	setbuf(stdout, NULL);
 
 	// Parse Switches
-	while ((opt = getopt(argc, argv, "al:r:n:jd:c:R:vqh")) != -1) {
+	while ((opt = getopt(argc, argv, "al:r:n:jd:c:R:Hvqh")) != -1) {
 		switch (opt) {
 			case 'a':  autoconnect = 1; break;
 			case 'l':  connect_left = optarg; break;
@@ -473,6 +452,7 @@ int main(int argc, char *argv[])
 			case 'b':  bitrate = atoi(optarg); break;
 			case 'c':  channels = atoi(optarg); break;
 			case 'R':  rb_duration = atof(optarg); break;
+			case 'H':  hierarchy = 1; break;
 			case 'v':  verbose = 1; break;
 			case 'q':  quiet = 1; break;
 			default:  usage(); break;

@@ -30,7 +30,7 @@
 
 
 // ------- Constants -------
-#define DEFAULT_RB_LEN			(0.5)
+#define DEFAULT_RB_LEN			(1.0)
 #define WRITE_BUFFER_SIZE		(2048)
 #define MAX_FILEPATH_LEN		(1024)
 #define DEFAULT_DIR_MODE		(0755)
@@ -43,6 +43,7 @@
 extern jack_port_t *inport[2];
 extern jack_ringbuffer_t *ringbuffer[2];
 extern jack_client_t *client;
+extern time_t file_start;
 
 
 // ------- Logging ---------
@@ -87,26 +88,16 @@ typedef struct encoder_funcs_s
 
 
 
-// ------- ID3v1.0 Structure -------
-
-typedef struct id3v1_s
-{
-	char tag[3];
-	char title[30];
-	char artist[30];
-	char album[30];
-	char year[4];
-	char comment[30];
-	char genre;
-} id3v1_t;
 
 
 // In rotter.c
-void write_id3v1( FILE *file );
 void rotter_log( RotterLogLevel level, const char* fmt, ... );
 
 // In twolame.c
 encoder_funcs_t* init_twolame( int channels, int bitrate );
+
+// In id3.c
+void write_id3v1( FILE *file );
 
 
 
