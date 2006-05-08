@@ -34,7 +34,7 @@ AC_CHECK_LIB([mx], [powf])
 PKG_CHECK_MODULES(JACK, jack >= 0.100.0)
 
 # Check for TwoLAME
-PKG_CHECK_MODULES(TWOLAME, twolame>= 0.3.7)
+PKG_CHECK_MODULES(TWOLAME, twolame >= 0.3.7)
 
 
 
