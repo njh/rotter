@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <limits.h>
+#include <ctype.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -408,6 +409,17 @@ static void main_loop( encoder_funcs_t* encoder )
 }
 
 
+static char* str_tolower( char* str )
+{
+	int i=0;
+	
+	for(i=0; i< strlen( str ); i++) {
+		str[i] = tolower( str[i] );
+	}
+	
+	return str;
+}
+
 
 // Display how to use this program
 static void usage()
@@ -415,6 +427,7 @@ static void usage()
 	printf("%s version %s\n\n", PACKAGE_NAME, PACKAGE_VERSION);
 	printf("Usage: %s [options] <directory>\n", PACKAGE_NAME);
 	printf("   -a            Automatically connect JACK ports\n");
+	printf("   -f <format>   Format of recording [mp2/mp3]\n");
 	printf("   -b <bitrate>  Bitrate of recording\n");
 	printf("   -c <channels> Number of channels\n");
 	printf("   -n <name>     Name for this JACK client\n");
@@ -434,6 +447,7 @@ int main(int argc, char *argv[])
 	char *client_name = DEFAULT_CLIENT_NAME;
 	char *connect_left = NULL;
 	char *connect_right = NULL;
+	char *format = DEFAULT_FORMAT;
 	int bitrate = DEFAULT_BITRATE;
 	encoder_funcs_t* encoder = NULL;
 	int opt;
@@ -442,13 +456,14 @@ int main(int argc, char *argv[])
 	setbuf(stdout, NULL);
 
 	// Parse Switches
-	while ((opt = getopt(argc, argv, "al:r:n:jd:c:R:Hvqh")) != -1) {
+	while ((opt = getopt(argc, argv, "al:r:n:jf:b:c:R:Hvqh")) != -1) {
 		switch (opt) {
 			case 'a':  autoconnect = 1; break;
 			case 'l':  connect_left = optarg; break;
 			case 'r':  connect_right = optarg; break;
 			case 'n':  client_name = optarg; break;
 			case 'j':  jack_opt |= JackNoStartServer; break;
+			case 'f':  format = str_tolower(optarg); break;
 			case 'b':  bitrate = atoi(optarg); break;
 			case 'c':  channels = atoi(optarg); break;
 			case 'R':  rb_duration = atof(optarg); break;
@@ -495,7 +510,13 @@ int main(int argc, char *argv[])
 
 	
 	// Initialise encoder
-	encoder = init_twolame( channels, bitrate );
+	if (strcmp( "mp2", format) == 0) {
+		encoder = init_twolame( channels, bitrate );
+	} else {
+		rotter_error("Don't know how to encode to format '%s'.", format);
+	}
+	
+	// Failure?
 	if (encoder==NULL) {
 		rotter_debug("Failed to initialise encoder.");
 		finish_jack();
