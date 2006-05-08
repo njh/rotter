@@ -42,7 +42,6 @@
 twolame_options *twolame_opts = NULL;
 jack_default_audio_sample_t *pcm_buffer[2]= {NULL,NULL};
 unsigned char *mpeg_buffer=NULL;
-FILE* output_file = NULL;
 
 
 #define SAMPLES_PER_FRAME 		(1152)
@@ -58,7 +57,7 @@ static int encode()
 	int c=0;
 	
 	// Check that the output file is open
-	if (output_file==NULL) {
+	if (mpegaudio_file==NULL) {
 		rotter_error( "Warning: output file isn't open, while trying to encode.");
 		// Try again later
 		return 0;
@@ -98,7 +97,7 @@ static int encode()
 	
 	
 	// Write it to disk
-	bytes_written = fwrite( mpeg_buffer, 1, bytes_encoded, output_file);
+	bytes_written = fwrite( mpeg_buffer, 1, bytes_encoded, mpegaudio_file);
 	if (bytes_written != bytes_encoded) {
 		rotter_error( "Warning: failed to write encoded audio to disk.");
 		return -1;
@@ -111,48 +110,6 @@ static int encode()
 }
 
 
-
-static int close_file()
-{
-	if (output_file==NULL) return -1;
-	
-	// Write ID3v1 tags
-	write_id3v1( output_file );
-
-
-	rotter_debug("Closing MP2 output file.");
-
-	if (fclose(output_file)) {
-		rotter_error( "Failed to close output file: %s", strerror(errno) );
-		return -1;
-	}
-	
-	// File is now closed
-	output_file=NULL;
-
-	// Success
-	return 0;
-}
-
-
-static int open_file( char* filepath )
-{
-
-	rotter_debug("Opening MP2 output file: %s", filepath);
-	if (output_file) {
-		rotter_error("Warning: already open while opening output file."); 
-		close_file();
-	}
-
-	output_file = fopen( filepath, "ab" );
-	if (output_file==NULL) {
-		rotter_error( "Failed to open output file: %s", strerror(errno) );
-		return -1;
-	}
-
-	// Success
-	return 0;
-}
 
 
 static void shutdown()
@@ -176,8 +133,6 @@ static void shutdown()
 		mpeg_buffer=NULL;
 	}
 	
-	if (output_file) close_file();
-
 }
 
 
@@ -242,8 +197,8 @@ encoder_funcs_t* init_twolame( int channels, int bitrate )
 	
 
 	funcs->file_suffix = ".mp2";
-	funcs->open = open_file;
-	funcs->close = close_file;
+	funcs->open = open_mpegaudio_file;
+	funcs->close = close_mpegaudio_file;
 	funcs->encode = encode;
 	funcs->shutdown = shutdown;
 

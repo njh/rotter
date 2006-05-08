@@ -1,6 +1,6 @@
 /*
 
-	id3.c
+	mpegaudiofile.c
 	Recording of Transmission / Audio Logger
 	Copyright (C) 2006  Nicholas J. Humfrey
 	
@@ -26,9 +26,13 @@
 #include <string.h>
 #include <limits.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "rotter.h"
 #include "config.h"
+
+// ------- Globals -------
+FILE *mpegaudio_file = NULL;
 
 
 /* 
@@ -64,14 +68,14 @@ typedef struct id3v1_s
 
 
 // Write an ID3v1 tag to a file handle
-void write_id3v1( FILE *file )
+static void write_id3v1()
 {
 	char hostname[HOST_NAME_MAX];
 	char year[5];
 	struct tm tm;
 	id3v1_t id3;
 	
-	if (file==NULL) return;
+	if (mpegaudio_file==NULL) return;
 	
 	// Zero the ID3 data structure
 	bzero( &id3, sizeof( id3v1_t )); 
@@ -110,11 +114,55 @@ void write_id3v1( FILE *file )
 	id3.genre = 255;
 
 	// Now write it to file
-	if (fwrite( &id3, sizeof(id3v1_t), 1, file) != 1) {
+	if (fwrite( &id3, sizeof(id3v1_t), 1, mpegaudio_file) != 1) {
 		rotter_error( "Warning: failed to write ID3v1 tag." );
 	}
 }
 
+
+
+
+int close_mpegaudio_file()
+{
+	if (mpegaudio_file==NULL) return -1;
+	
+	// Write ID3v1 tags
+	write_id3v1( );
+
+
+	rotter_debug("Closing MPEG Audio output file.");
+
+	if (fclose(mpegaudio_file)) {
+		rotter_error( "Failed to close output file: %s", strerror(errno) );
+		return -1;
+	}
+	
+	// File is now closed
+	mpegaudio_file=NULL;
+
+	// Success
+	return 0;
+}
+
+
+int open_mpegaudio_file( char* filepath )
+{
+
+	rotter_debug("Opening MPEG Audio output file: %s", filepath);
+	if (mpegaudio_file) {
+		rotter_error("Warning: already open while opening output file."); 
+		close_mpegaudio_file();
+	}
+
+	mpegaudio_file = fopen( filepath, "ab" );
+	if (mpegaudio_file==NULL) {
+		rotter_error( "Failed to open output file: %s", strerror(errno) );
+		return -1;
+	}
+
+	// Success
+	return 0;
+}
 
 
 

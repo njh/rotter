@@ -75,6 +75,7 @@ typedef enum {
 typedef struct encoder_funcs_s
 {
 	const char* file_suffix;		// Suffix for archive files
+	void* output_file;
 
 	int (*open)(char * filepath);	// Result: 0=success
 	int (*close)();					// Result: 0=success
@@ -96,9 +97,10 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... );
 // In twolame.c
 encoder_funcs_t* init_twolame( int channels, int bitrate );
 
-// In id3.c
-void write_id3v1( FILE *file );
-
+// In mpegaudiofile.c
+extern FILE* mpegaudio_file;
+int close_mpegaudio_file();
+int open_mpegaudio_file( char* filepath );
 
 
 #endif

@@ -264,6 +264,7 @@ static time_t start_of_hour()
 	return mktime( &tm );
 }
 
+
 static int directory_exists(const char * filepath)
 {
 	struct stat s;
@@ -282,7 +283,6 @@ static int directory_exists(const char * filepath)
 	
 	return 0;
 }
-
 
 
 static int mkdir_p( const char* dir )
