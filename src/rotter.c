@@ -181,12 +181,15 @@ void init_jack( const char* client_name, jack_options_t jack_opt )
 static
 void finish_jack()
 {
+	int i;
+
 	// Leave the Jack graph
 	jack_client_close(client);
 	
 	// Free up the ring buffers
-	jack_ringbuffer_free( ringbuffer[0] );
-	jack_ringbuffer_free( ringbuffer[1] );
+	for(i=0; i<channels; i++) {
+		jack_ringbuffer_free( ringbuffer[i] );
+	}
 }
 
 
