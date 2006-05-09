@@ -86,6 +86,7 @@ static
 void shutdown_callback_jack(void *arg)
 {
 	rotter_error("Rotter quitting because jackd is shutting down." );
+	running=0;
 }
 
 
