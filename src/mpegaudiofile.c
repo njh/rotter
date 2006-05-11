@@ -28,6 +28,7 @@
 #include <limits.h>
 #include <unistd.h>
 #include <errno.h>
+#include <netdb.h>
 
 #include "rotter.h"
 #include "config.h"
@@ -50,6 +51,10 @@ FILE *mpegaudio_file = NULL;
 #endif
 #endif
 
+#ifndef DOMAIN_NAME_MAX
+#define DOMAIN_NAME_MAX	(1024)
+#endif
+
 
 
 // ------- ID3v1.0 Structure -------
@@ -67,11 +72,48 @@ typedef struct id3v1_s
 
 
 
+static char* gethostname_fqdn()
+{
+	char hostname[ HOST_NAME_MAX ];
+	char domainname[ DOMAIN_NAME_MAX ];
+	struct hostent	*hp;
+	
+	if (gethostname( hostname, HOST_NAME_MAX ) < 0) {
+		// Failed
+		return NULL;
+	}
+	
+	// If it contains a dot, then assume it is a FQDN
+    if (strchr(hostname, '.') != NULL)
+		return strdup( hostname );
+
+    // Try resolving the hostname into a FQDN
+    if ( (hp = gethostbyname( hostname )) != NULL ) {
+    	if (strchr(hp->h_name, '.') != NULL)
+    		return strdup( hp->h_name );
+    }
+
+	// Try appending our domain name
+	if ( getdomainname( domainname, DOMAIN_NAME_MAX) == 0
+	     && strlen( domainname ) )
+	{
+		int fqdn_len = strlen( hostname ) + strlen( domainname ) + 2;
+		char *fqdn = malloc( fqdn_len );
+		snprintf( fqdn, fqdn_len, "%s.%s", hostname, domainname );
+		return fqdn;
+	}
+
+
+	// What else can we try?
+	return NULL;
+}
+
+
 
 // Write an ID3v1 tag to a file handle
 static void write_id3v1()
 {
-	char hostname[HOST_NAME_MAX];
+	char *hostname;
 	char year[5];
 	struct tm tm;
 	id3v1_t id3;
@@ -95,10 +137,9 @@ static void write_id3v1()
 				tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min );
 
 	// Artist - hostname
-	bzero( hostname, HOST_NAME_MAX );
-	gethostname( hostname, HOST_NAME_MAX );
-	memcpy( id3.artist, hostname, sizeof(id3.artist) );
-
+	hostname = gethostname_fqdn();
+	strncpy( id3.artist, hostname, sizeof(id3.artist) );
+	free(hostname);
 
 	// Album - unused
 	
