@@ -3,6 +3,8 @@ Rotter TODO List
 
 In order of priority:
  
+ - Make sure we stay on the same device when deleting files
+ 
  - Support other formats?
  	- MP3/LAME
  	- Ogg Vorbis

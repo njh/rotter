@@ -29,16 +29,111 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+ 
 #include "rotter.h"
 #include "config.h"
+
+static void delete_file( const char* filepath, time_t timestamp )
+{
+	struct stat sb;
+	
+	if (stat( filepath, &sb )) {
+		rotter_error( "Warning: failed to stat file: %s", filepath );
+		return;
+	}
+	
+	if (sb.st_mtime < timestamp) {
+		rotter_debug( "Deleting file: %s", filepath );
+		
+		/*
+		if (unlink(filepath)) {
+			rotter_error( "Warning: failed to delete file: %s", filepath );
+			return;
+		}
+		*/
+	}
+	
+}
+
+static void delete_files_in_dir( const char* dirpath, time_t timestamp )
+{
+	DIR *dirp = opendir(dirpath);
+	struct dirent *dp;
+	
+	if (dirp==NULL) {
+		rotter_fatal( "Failed to open directory: %s.", dirpath );
+		return;
+	}
+	
+	while( (dp = readdir( dirp )) != NULL ) {
+		int newpath_len;
+		char* newpath;
+
+		if (strcmp( ".", dp->d_name )==0) continue;
+		if (strcmp( "..", dp->d_name )==0) continue;
+		
+		
+		newpath_len = strlen(dirpath) + strlen(dp->d_name) + 2;
+		newpath = malloc( newpath_len );
+		snprintf( newpath, newpath_len, "%s/%s", dirpath, dp->d_name );
+		
+		if (dp->d_type == DT_DIR) {
+		
+			// Process sub directory
+			//delete_files_in_dir( newpath, timestamp );
+			
+		} else if (dp->d_type == DT_REG) {
+
+			delete_file( newpath, timestamp );
+			
+		} else {
+			rotter_error( "Warning: not a file or a directory: %s" );
+		}
+		free( newpath );
+
+	}
+	
+	closedir( dirp );
+}
+
 
 
 
 // Delete files older than 'hours'
-void delete_files( const char* dir, int hours )
+void delete_files( const char* dirpath, int hours )
 {
-	rotter_debug( "Deleting files older than %d hours in %s.\n", hours, dir );
+	int old_niceness, new_niceness = 15;
+	time_t now = time(NULL);
+	pid_t child_pid;
 
+	rotter_info( "Deleting files older than %d hours in %s.", hours, dirpath );
+
+
+	// Fork a new process
+	child_pid = fork();
+	if (child_pid>0) {
+		// Parent is here
+		rotter_debug( "Forked new proccess to delete files (pid=%d).", child_pid );
+		return;
+	} else if (child_pid<0) {
+		rotter_error( "Warning: fork failed: %s", strerror(errno) );
+		return;
+	}
+	
+	// Make this process nicer
+	// (deleting files is pretty unimportant)
+	old_niceness = nice( new_niceness );
+	rotter_debug( "Changed child proccess niceless from %d to %d.", old_niceness, new_niceness );
+	
+	
+	// Recursively process directories
+	delete_files_in_dir( dirpath, now-(hours*3600) );
+	
+	// End of child process
+	exit(0);
 }
 
 
