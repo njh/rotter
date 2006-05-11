@@ -1,7 +1,8 @@
 /*
 
 	mpegaudiofile.c
-	Recording of Transmission / Audio Logger
+	
+	rotter: Recording of Transmission / Audio Logger
 	Copyright (C) 2006  Nicholas J. Humfrey
 	
 	This program is free software; you can redistribute it and/or
