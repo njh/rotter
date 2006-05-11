@@ -53,6 +53,7 @@ int hierarchy = 0;						// Flat files or folder hierarchy ?
 int channels = DEFAULT_CHANNELS;		// Number of input channels
 float rb_duration = DEFAULT_RB_LEN;		// Duration of ring buffer
 char *root_directory = NULL;			// Root directory of archives
+int delete_hours = DEFAULT_DELETE_HOURS;// Delete files after this many hours
 time_t file_start = 0;					// Start time of the open file
 int running = 1;						// True while still running
 
@@ -86,6 +87,8 @@ static
 void shutdown_callback_jack(void *arg)
 {
 	rotter_error("Rotter quitting because jackd is shutting down." );
+	
+	// Signal the main thead to stop
 	running=0;
 }
 
@@ -395,6 +398,11 @@ static void main_loop( encoder_funcs_t* encoder )
 			
 			file_start = this_hour;
 			free(filepath);
+			
+			
+			// Delete files older delete_hours
+			if (delete_hours>0)
+				delete_files( root_directory, delete_hours );
 		}
 		
 
@@ -435,6 +443,7 @@ static void usage()
 	printf("   -b <bitrate>  Bitrate of recording\n");
 	printf("   -c <channels> Number of channels\n");
 	printf("   -n <name>     Name for this JACK client\n");
+	printf("   -d <hours>    Delete files in directory older than this\n");
 	printf("   -H            Create folder hierarchy instead of flat files\n");
 	printf("   -j            Don't automatically start jackd\n");
 	printf("   -v            Enable verbose mode\n");
@@ -460,7 +469,7 @@ int main(int argc, char *argv[])
 	setbuf(stdout, NULL);
 
 	// Parse Switches
-	while ((opt = getopt(argc, argv, "al:r:n:jf:b:c:R:Hvqh")) != -1) {
+	while ((opt = getopt(argc, argv, "al:r:n:jf:b:d:c:R:Hvqh")) != -1) {
 		switch (opt) {
 			case 'a':  autoconnect = 1; break;
 			case 'l':  connect_left = optarg; break;
@@ -469,6 +478,7 @@ int main(int argc, char *argv[])
 			case 'j':  jack_opt |= JackNoStartServer; break;
 			case 'f':  format = str_tolower(optarg); break;
 			case 'b':  bitrate = atoi(optarg); break;
+			case 'd':  delete_hours = atoi(optarg); break;
 			case 'c':  channels = atoi(optarg); break;
 			case 'R':  rb_duration = atof(optarg); break;
 			case 'H':  hierarchy = 1; break;

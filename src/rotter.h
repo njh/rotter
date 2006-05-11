@@ -38,6 +38,7 @@
 #define DEFAULT_FORMAT			"mp2"
 #define DEFAULT_BITRATE			(160)
 #define DEFAULT_CHANNELS		(2)
+#define DEFAULT_DELETE_HOURS	(0)
 
 
 // ------- Globals ---------
@@ -101,7 +102,10 @@ encoder_funcs_t* init_twolame( int channels, int bitrate );
 // In mpegaudiofile.c
 extern FILE* mpegaudio_file;
 int close_mpegaudio_file();
-int open_mpegaudio_file( char* filepath );
+int open_mpegaudio_file( const char* filepath );
+
+// In deletefiles.c
+extern void delete_files( const char* dir, int hours );
 
 
 #endif

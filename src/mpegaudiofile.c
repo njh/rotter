@@ -145,7 +145,7 @@ int close_mpegaudio_file()
 }
 
 
-int open_mpegaudio_file( char* filepath )
+int open_mpegaudio_file( const char* filepath )
 {
 
 	rotter_debug("Opening MPEG Audio output file: %s", filepath);
