@@ -445,6 +445,7 @@ static void usage()
 	printf("   -c <channels> Number of channels\n");
 	printf("   -n <name>     Name for this JACK client\n");
 	printf("   -d <hours>    Delete files in directory older than this\n");
+	printf("   -R <secs>     Length of the ring buffer (in seconds)\n");
 	printf("   -H            Create folder hierarchy instead of flat files\n");
 	printf("   -j            Don't automatically start jackd\n");
 	printf("   -v            Enable verbose mode\n");

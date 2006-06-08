@@ -31,7 +31,7 @@
 
 
 // ------- Constants -------
-#define DEFAULT_RB_LEN			(1.0)
+#define DEFAULT_RB_LEN			(2.0)
 #define WRITE_BUFFER_SIZE		(2048)
 #define MAX_FILEPATH_LEN		(1024)
 #define DEFAULT_DIR_MODE		(0755)
