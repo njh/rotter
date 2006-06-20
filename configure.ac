@@ -36,6 +36,17 @@ PKG_CHECK_MODULES(JACK, jack >= 0.100.0)
 # Check for TwoLAME
 PKG_CHECK_MODULES(TWOLAME, twolame >= 0.3.7)
 
+# Check for LAME
+AC_CHECK_LIB(mp3lame, lame_get_version, 
+	[ AC_CHECK_HEADER( lame/lame.h,
+		[ LAME_CFLAGS="" 
+		  LAME_LIBS="-lmp3lame" ],
+		[ AC_MSG_ERROR(Found libmp3lame but can't find <lame/lame.h>)]
+	  ) 
+	],	[ AC_MSG_ERROR(Can't find libmp3lame, you need to have LAME installed)]
+)
+AC_SUBST( LAME_CFLAGS )
+AC_SUBST( LAME_LIBS )
 
 
 dnl ############## Header Checks

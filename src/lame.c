@@ -1,6 +1,6 @@
 /*
 
-	twolame.c
+	lame.c
 	
 	rotter: Recording of Transmission / Audio Logger
 	Copyright (C) 2006  Nicholas J. Humfrey
@@ -32,15 +32,14 @@
 #include <getopt.h>
 #include <errno.h>
 #include <stdarg.h>
-#include <twolame.h>
+#include <lame/lame.h>
 
 #include "rotter.h"
 #include "config.h"
 
 
 
-// ------ Globals ---------
-static twolame_options *twolame_opts = NULL;
+static lame_global_flags *lame_opts = NULL;
 static jack_default_audio_sample_t *pcm_buffer[2]= {NULL,NULL};
 static unsigned char *mpeg_buffer=NULL;
 
@@ -53,7 +52,7 @@ static int encode()
 {
 	jack_nframes_t samples = SAMPLES_PER_FRAME;
 	size_t desired = samples * sizeof( jack_default_audio_sample_t );
-	int channels = twolame_get_num_channels(twolame_opts);
+	int channels = lame_get_num_channels(lame_opts);
 	int bytes_read=0, bytes_encoded=0, bytes_written=0;
 	int c=0;
 	
@@ -88,13 +87,13 @@ static int encode()
 
 
 	// Encode it
-	bytes_encoded = twolame_encode_buffer_float32( twolame_opts, 
-						pcm_buffer[0], pcm_buffer[1],
-						samples, mpeg_buffer, WRITE_BUFFER_SIZE );
-	if (bytes_encoded<=0) {
-		rotter_error( "Warning: failed to encode any audio.");
-		return -1;
-	}
+	//bytes_encoded = lame_encode_buffer_float32( lame_opts, 
+	//					pcm_buffer[0], pcm_buffer[1],
+	//					samples, mpeg_buffer, WRITE_BUFFER_SIZE );
+	//if (bytes_encoded<=0) {
+	//	rotter_error( "Warning: failed to encode any audio.");
+	//	return -1;
+	//}
 	
 	
 	// Write it to disk
@@ -116,8 +115,8 @@ static int encode()
 static void shutdown()
 {
 
-	rotter_debug("Closing down TwoLAME encoder.");
-	twolame_close( &twolame_opts );
+	rotter_debug("Closing down lame encoder.");
+	lame_close( lame_opts );
 
 	if (pcm_buffer[0]) {
 		free(pcm_buffer[0]);
@@ -137,50 +136,70 @@ static void shutdown()
 }
 
 
-encoder_funcs_t* init_twolame( int channels, int bitrate )
+static const char* lame_get_version_name( lame_global_flags *glopts ) 
+{
+	int version = lame_get_version( glopts );
+	if (version==0) { return "MPEG-2"; }
+	else if (version==1) { return "MPEG-1"; }
+	else if (version==2) { return "MPEG-2.5"; }
+	else { return "MPEG-?"; }
+
+}
+
+static const char* lame_get_mode_name( lame_global_flags *glopts ) 
+{
+	int mode = lame_get_mode( glopts );
+	if (mode==STEREO) { return "Stereo"; }
+	else if (mode==JOINT_STEREO) { return "Joint Stereo"; }
+	else if (mode==DUAL_CHANNEL) { return "Dual Channel"; }
+	else if (mode==MONO) { return "Mono"; }
+	else { return "Unknown Mode"; }
+}
+
+encoder_funcs_t* init_lame( int channels, int bitrate )
 {
 	encoder_funcs_t* funcs = NULL;
 
-	twolame_opts = twolame_init();
-	if (twolame_opts==NULL) {
-		rotter_error("TwoLAME error: failed to initialise.");
+	lame_opts = lame_init();
+	if (lame_opts==NULL) {
+		rotter_error("lame error: failed to initialise.");
 		return NULL;
 	}
 	
-	if ( 0 > twolame_set_num_channels( twolame_opts, channels ) ) {
-		rotter_error("TwoLAME error: failed to set number of channels.");
+	if ( 0 > lame_set_num_channels( lame_opts, channels ) ) {
+		rotter_error("lame error: failed to set number of channels.");
 		return NULL;
     }
 
-	if ( 0 > twolame_set_in_samplerate( twolame_opts, jack_get_sample_rate( client ) )) {
-		rotter_error("TwoLAME error: failed to set input samplerate.");
+	if ( 0 > lame_set_in_samplerate( lame_opts, jack_get_sample_rate( client ) )) {
+		rotter_error("lame error: failed to set input samplerate.");
 		return NULL;
     }
 
-	if ( 0 > twolame_set_out_samplerate( twolame_opts, jack_get_sample_rate( client ) )) {
-		rotter_error("TwoLAME error: failed to set output samplerate.");
+	if ( 0 > lame_set_out_samplerate( lame_opts, jack_get_sample_rate( client ) )) {
+		rotter_error("lame error: failed to set output samplerate.");
 		return NULL;
     }
 
-	if ( 0 > twolame_set_brate( twolame_opts, bitrate) ) {
-		rotter_error("TwoLAME error: failed to set bitrate.");
+	if ( 0 > lame_set_brate( lame_opts, bitrate) ) {
+		rotter_error("lame error: failed to set bitrate.");
 		return NULL;
 	}
 
-	if ( 0 > twolame_init_params( twolame_opts ) ) {
-		rotter_error("TwoLAME error: failed to initialize parameters.");
+	if ( 0 > lame_init_params( lame_opts ) ) {
+		rotter_error("lame error: failed to initialize parameters.");
 		return NULL;
     }
     
 
-	rotter_info( "Encoding using libtwolame version %s.", get_twolame_version() );
+	rotter_info( "Encoding using liblame version %s.", get_lame_version() );
 	rotter_debug( "  Input: %d Hz, %d channels",
-						twolame_get_in_samplerate(twolame_opts),
-						twolame_get_num_channels(twolame_opts));
-	rotter_debug( "  Output: %s Layer 2, %d kbps, %s",
-						twolame_get_version_name(twolame_opts),
-						twolame_get_bitrate(twolame_opts),
-						twolame_get_mode_name(twolame_opts));
+						lame_get_in_samplerate(lame_opts),
+						lame_get_num_channels(lame_opts));
+	rotter_debug( "  Output: %s Layer 3, %d kbps, %s",
+						lame_get_version_name(lame_opts),
+						lame_get_brate(lame_opts),
+						lame_get_mode_name(lame_opts));
 
 	// Allocate memory for encoded audio
 	mpeg_buffer = malloc( WRITE_BUFFER_SIZE );
@@ -197,7 +216,7 @@ encoder_funcs_t* init_twolame( int channels, int bitrate )
     }
 	
 
-	funcs->file_suffix = ".mp2";
+	funcs->file_suffix = ".mp3";
 	funcs->open = open_mpegaudio_file;
 	funcs->close = close_mpegaudio_file;
 	funcs->encode = encode;
@@ -206,5 +225,7 @@ encoder_funcs_t* init_twolame( int channels, int bitrate )
 
 	return funcs;
 }
+
+
 
 

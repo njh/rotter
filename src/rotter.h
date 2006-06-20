@@ -80,8 +80,8 @@ typedef struct encoder_funcs_s
 	const char* file_suffix;		// Suffix for archive files
 	void* output_file;
 
-	int (*open)(char * filepath);	// Result: 0=success
-	int (*close)();					// Result: 0=success
+	int (*open)(const char * filepath);	// Result: 0=success
+	int (*close)();						// Result: 0=success
 		
 	int (*encode)();				// Result: negative=error
 									//		   0= try again later
@@ -99,6 +99,9 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... );
 
 // In twolame.c
 encoder_funcs_t* init_twolame( int channels, int bitrate );
+
+// In lame.c
+encoder_funcs_t* init_lame( int channels, int bitrate );
 
 // In mpegaudiofile.c
 extern FILE* mpegaudio_file;

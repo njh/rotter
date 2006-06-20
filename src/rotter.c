@@ -528,6 +528,8 @@ int main(int argc, char *argv[])
 	// Initialise encoder
 	if (strcmp( "mp2", format) == 0) {
 		encoder = init_twolame( channels, bitrate );
+	} else if (strcmp( "mp3", format) == 0) {
+		encoder = init_lame( channels, bitrate );
 	} else {
 		rotter_error("Don't know how to encode to format '%s'.", format);
 	}
