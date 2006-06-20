@@ -3,10 +3,15 @@ Rotter TODO List
 
 In order of priority:
  
+ _ add MP3/LAME support
+ 
  - Make sure we stay on the same device when deleting files
  
+ - Make codec libraries optional at compile time
+    (so if you only want to encode to MP3, you only need lame)
+    
  - Support other formats?
- 	- MP3/LAME
- 	- Ogg Vorbis
  	- PCM audio/libsndfile
+ 	- FLAC
+ 	- Ogg Vorbis
  
