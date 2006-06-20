@@ -32,11 +32,15 @@
 #include <getopt.h>
 #include <errno.h>
 #include <stdarg.h>
-#include <lame/lame.h>
 
 #include "rotter.h"
 #include "config.h"
 
+
+
+#ifdef HAVE_LAME
+
+#include <lame/lame.h>
 
 
 static lame_global_flags *lame_opts = NULL;
@@ -227,5 +231,16 @@ encoder_funcs_t* init_lame( int channels, int bitrate )
 }
 
 
+
+#else  // HAVE_LAME
+
+encoder_funcs_t* init_lame( int channels, int bitrate )
+{
+	
+	rotter_error( "LAME (MP3 codec) support was not available at compile time." );
+	return NULL;
+}
+
+#endif   // HAVE_LAME
 
 

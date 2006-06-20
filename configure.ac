@@ -33,17 +33,30 @@ AC_CHECK_LIB([mx], [powf])
 # Check for JACK (need 0.100.0 for jack_client_open)
 PKG_CHECK_MODULES(JACK, jack >= 0.100.0)
 
+
 # Check for TwoLAME
-PKG_CHECK_MODULES(TWOLAME, twolame >= 0.3.7)
+PKG_CHECK_MODULES(TWOLAME, twolame >= 0.3.7,
+	[ HAVE_TWOLAME="Yes"
+	  AC_DEFINE(HAVE_TWOLAME, 1, [TwoLAME library is available])
+	], 
+	[ HAVE_TWOLAME="No" 
+	  AC_MSG_WARN(Can't find TwoLAME.)
+	]
+)
+
 
 # Check for LAME
 AC_CHECK_LIB(mp3lame, lame_get_version, 
 	[ AC_CHECK_HEADER( lame/lame.h,
-		[ LAME_CFLAGS="" 
+		[ HAVE_LAME="Yes"
+	      AC_DEFINE(HAVE_LAME, 1, [LAME library is available])
+		  LAME_CFLAGS="" 
 		  LAME_LIBS="-lmp3lame" ],
-		[ AC_MSG_ERROR(Found libmp3lame but can't find <lame/lame.h>)]
+		[ HAVE_LAME="No"
+		  AC_MSG_WARN(Found libmp3lame but can't find <lame/lame.h>)]
 	  ) 
-	],	[ AC_MSG_ERROR(Can't find libmp3lame, you need to have LAME installed)]
+	],	[ HAVE_LAME="No"
+	      AC_MSG_WARN(Can't find libmp3lame)]
 )
 AC_SUBST( LAME_CFLAGS )
 AC_SUBST( LAME_LIBS )
@@ -64,4 +77,15 @@ AC_CHECK_FUNCS( atexit usleep )
 dnl ############## Final Output
 
 AC_OUTPUT([Makefile src/Makefile])
+
+
+dnl ############## Summary
+
+echo ""
+echo "Building $PACKAGE_NAME version $PACKAGE_VERSION."
+echo ""
+echo "     TwoLAME codec (MP2): $HAVE_TWOLAME "
+echo "        LAME codec (MP3): $HAVE_LAME "
+echo ""
+echo "Next type 'make' to begin compilation."
 

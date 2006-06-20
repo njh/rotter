@@ -32,10 +32,14 @@
 #include <getopt.h>
 #include <errno.h>
 #include <stdarg.h>
-#include <twolame.h>
 
 #include "rotter.h"
 #include "config.h"
+
+
+#ifdef HAVE_TWOLAME
+
+#include <twolame.h>
 
 
 
@@ -208,3 +212,13 @@ encoder_funcs_t* init_twolame( int channels, int bitrate )
 }
 
 
+#else  // HAVE_TWOLAME
+
+encoder_funcs_t* init_twolame( int channels, int bitrate )
+{
+	
+	rotter_error( "TwoLAME (MP2 codec) support was not available at compile time." );
+	return NULL;
+}
+
+#endif   // HAVE_TWOLAME

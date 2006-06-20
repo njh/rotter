@@ -22,6 +22,8 @@
 */
 
 
+#include "config.h"
+
 #include <jack/jack.h>
 #include <jack/ringbuffer.h>
 
@@ -36,10 +38,21 @@
 #define MAX_FILEPATH_LEN		(1024)
 #define DEFAULT_DIR_MODE		(0755)
 #define DEFAULT_CLIENT_NAME		"rotter"
-#define DEFAULT_FORMAT			"mp2"
 #define DEFAULT_BITRATE			(160)
 #define DEFAULT_CHANNELS		(2)
 #define DEFAULT_DELETE_HOURS	(0)
+
+
+// ----- Default Format -----
+#ifdef HAVE_TWOLAME
+  #define DEFAULT_FORMAT		"mp2"
+#else
+  #ifdef HAVE_LAME
+    #define DEFAULT_FORMAT		"mp3"
+  #else
+    #define DEFAULT_FORMAT		""
+  #endif
+#endif
 
 
 // ------- Globals ---------
@@ -50,7 +63,6 @@ extern time_t file_start;
 
 
 // ------- Logging ---------
-
 typedef enum {
 	ROTTER_DEBUG=1,		// Only display debug if verbose
 	ROTTER_INFO,		// Don't show info when quiet
