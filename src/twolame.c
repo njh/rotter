@@ -25,19 +25,18 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
 
-#include <getopt.h>
-#include <errno.h>
-#include <stdarg.h>
-
 #include "rotter.h"
-#include "config.h"
 
 
 #ifdef HAVE_TWOLAME
+
+#include <sys/types.h>
+#include <limits.h>
+#include <errno.h>
+#include <stdarg.h>
 
 #include <twolame.h>
 
@@ -97,7 +96,7 @@ static int encode()
 						samples, mpeg_buffer, WRITE_BUFFER_SIZE );
 	if (bytes_encoded<=0) {
 		rotter_error( "Warning: failed to encode any audio.");
-		return -1;
+		return bytes_encoded;
 	}
 	
 	
@@ -187,7 +186,7 @@ encoder_funcs_t* init_twolame( int channels, int bitrate )
 						twolame_get_mode_name(twolame_opts));
 
 	// Allocate memory for encoded audio
-	mpeg_buffer = malloc( WRITE_BUFFER_SIZE );
+	mpeg_buffer = malloc( 1.25*SAMPLES_PER_FRAME + 7200 );
 	if ( mpeg_buffer==NULL ) {
 		rotter_error( "Failed to allocate memery for encoded audio." );
 		return NULL;
@@ -211,14 +210,14 @@ encoder_funcs_t* init_twolame( int channels, int bitrate )
 	return funcs;
 }
 
-
 #else  // HAVE_TWOLAME
 
 encoder_funcs_t* init_twolame( int channels, int bitrate )
 {
 	
-	rotter_error( "TwoLAME (MP2 codec) support was not available at compile time." );
+	rotter_error( "TwoLAME support (MP2 codec) was not available at compile time." );
 	return NULL;
 }
 
 #endif   // HAVE_TWOLAME
+
