@@ -36,7 +36,7 @@
 #include "rotter.h"
 #include "config.h"
 
-static void delete_file( const char* filepath, time_t timestamp )
+static void delete_file( const char* filepath, dev_t device, time_t timestamp )
 {
 	struct stat sb;
 	
@@ -45,20 +45,37 @@ static void delete_file( const char* filepath, time_t timestamp )
 		return;
 	}
 	
+	if (sb.st_dev != device) {
+		rotter_debug( "Warning: %s isn't on same device as root dir.", filepath );
+		return;
+	}
+	
 	if (sb.st_mtime < timestamp) {
 		rotter_debug( "Deleting file: %s", filepath );
 		
-		/*
 		if (unlink(filepath)) {
 			rotter_error( "Warning: failed to delete file: %s", filepath );
 			return;
 		}
-		*/
 	}
 	
 }
 
-static void delete_files_in_dir( const char* dirpath, time_t timestamp )
+
+static dev_t get_file_device( const char* filepath )
+{
+	struct stat sb;
+	
+	if (stat( filepath, &sb )) {
+		rotter_error( "Warning: failed to stat file: %s", filepath );
+		return -1;
+	}
+	
+	return sb.st_dev;
+}
+
+
+static void delete_files_in_dir( const char* dirpath, dev_t device, time_t timestamp )
 {
 	DIR *dirp = opendir(dirpath);
 	struct dirent *dp;
@@ -68,6 +85,14 @@ static void delete_files_in_dir( const char* dirpath, time_t timestamp )
 		return;
 	}
 	
+	// Check we are on the same device
+	if (get_file_device(dirpath) != device) {
+		rotter_debug( "Warning: %s isn't on same device as root dir.", dirpath );
+		closedir( dirp );
+		return;
+	}
+	
+	// Check each item in the directory
 	while( (dp = readdir( dirp )) != NULL ) {
 		int newpath_len;
 		char* newpath;
@@ -83,11 +108,12 @@ static void delete_files_in_dir( const char* dirpath, time_t timestamp )
 		if (dp->d_type == DT_DIR) {
 		
 			// Process sub directory
-			//delete_files_in_dir( newpath, timestamp );
+			delete_files_in_dir( newpath, device, timestamp );
+			delete_file( newpath, device, timestamp );
 			
 		} else if (dp->d_type == DT_REG) {
 
-			delete_file( newpath, timestamp );
+			delete_file( newpath, device, timestamp );
 			
 		} else {
 			rotter_error( "Warning: not a file or a directory: %s" );
@@ -101,13 +127,14 @@ static void delete_files_in_dir( const char* dirpath, time_t timestamp )
 
 
 
-
 // Delete files older than 'hours'
 void delete_files( const char* dirpath, int hours )
 {
 	int old_niceness, new_niceness = 15;
 	time_t now = time(NULL);
 	pid_t child_pid;
+	dev_t device = get_file_device( dirpath );
+
 
 	rotter_info( "Deleting files older than %d hours in %s.", hours, dirpath );
 
@@ -130,7 +157,7 @@ void delete_files( const char* dirpath, int hours )
 	
 	
 	// Recursively process directories
-	delete_files_in_dir( dirpath, now-(hours*3600) );
+	delete_files_in_dir( dirpath, device, now-(hours*3600) );
 	
 	// End of child process
 	exit(0);

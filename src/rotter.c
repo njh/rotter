@@ -400,7 +400,7 @@ static void main_loop( encoder_funcs_t* encoder )
 			file_start = this_hour;
 			free(filepath);
 			
-			
+
 			// Delete files older delete_hours
 			if (delete_hours>0)
 				delete_files( root_directory, delete_hours );
