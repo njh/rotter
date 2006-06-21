@@ -43,6 +43,19 @@ rotter [options] <directory>
 
 Example:
 rooter -a -f mp3 -d 1000 -b 128 -v /var/achives
+[DEBUG]  Wed Jun 21 22:54:19 2006  Root directory: /var/archives
+[INFO]   Wed Jun 21 22:54:19 2006  JACK client registered as 'rotter'.
+[DEBUG]  Wed Jun 21 22:54:19 2006  Size of the ring buffers is 2.00 seconds (352800 bytes).
+[INFO]   Wed Jun 21 22:54:19 2006  Encoding using liblame version 3.96.1.
+[DEBUG]  Wed Jun 21 22:54:19 2006    Input: 44100 Hz, 2 channels
+[DEBUG]  Wed Jun 21 22:54:19 2006    Output: MPEG-1 Layer 3, 160 kbps, Joint Stereo
+[INFO]   Wed Jun 21 22:54:19 2006  Connecting 'alsa_pcm:capture_1' to 'rotter:left'
+[INFO]   Wed Jun 21 22:54:19 2006  Connecting 'alsa_pcm:capture_2' to 'rotter:right'
+[INFO]   Wed Jun 21 22:54:19 2006  Starting new archive file: /var/archives/2006/06/21/22/archive.mp3
+[DEBUG]  Wed Jun 21 22:54:19 2006  Opening MPEG Audio output file: /var/archives/2006/06/21/22/archive.mp3
+[INFO]   Wed Jun 21 23:00:00 2006  Starting new archive file: /var/archives/2006/06/21/23/archive.mp3
+[DEBUG]  Wed Jun 21 23:00:00 2006  Closing MPEG Audio output file.
+[DEBUG]  Wed Jun 21 23:00:00 2006  Opening MPEG Audio output file: /var/archives/2006/06/21/23/archive.mp3
 
 Start logging audio to hourly files in /var/archives.
 Rotter will automatically connect itself to the first two JACK output ports 
