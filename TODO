@@ -3,6 +3,8 @@ Rotter TODO List
 
 In order of priority:
  
+ - Make Rotter compile with -std=c99
+ 
  - Write manual page
  
  - Support other formats?
