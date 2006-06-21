@@ -3,6 +3,8 @@ Rotter TODO List
 
 In order of priority:
  
+ - Write manual page
+ 
  - Support other formats?
  	- PCM audio/libsndfile
  	- FLAC
