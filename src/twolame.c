@@ -95,7 +95,8 @@ static int encode()
 						pcm_buffer[0], pcm_buffer[1],
 						samples, mpeg_buffer, WRITE_BUFFER_SIZE );
 	if (bytes_encoded<=0) {
-		rotter_error( "Warning: failed to encode any audio.");
+		if (bytes_encoded<0)
+			rotter_error( "Warning: failed to encode audio: %d", bytes_encoded);
 		return bytes_encoded;
 	}
 	
