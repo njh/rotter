@@ -28,6 +28,7 @@ AC_C_INLINE
 dnl ############## Library Checks
 
 AC_CHECK_LIB([m], [sqrt], , [AC_MSG_ERROR(Can't find libm)])
+AC_CHECK_LIB([m], [lrintf])
 AC_CHECK_LIB([mx], [powf])
 
 # Check for JACK (need 0.100.0 for jack_client_open)
@@ -58,8 +59,7 @@ AC_CHECK_LIB(mp3lame, lame_get_version,
 	],	[ HAVE_LAME="No"
 	      AC_MSG_WARN(Can't find libmp3lame)]
 )
-AC_SUBST( LAME_CFLAGS )
-AC_SUBST( LAME_LIBS )
+
 
 
 dnl ############## Header Checks
@@ -69,8 +69,17 @@ AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
 AC_CHECK_HEADERS( [termios.h] )
 
 
+
 dnl ############## Function Checks
-AC_CHECK_FUNCS( atexit usleep )
+
+AC_CHECK_FUNCS( usleep )
+
+
+
+dnl ############## Compiler and Linker Flags
+
+CFLAGS="$CFLAGS -std=c99 -Wunused -Wall $JACK_CFLAGS $TWOLAME_CFLAGS $LAME_CFLAGS"
+LDFLAGS="$LDFLAGS $JACK_LIBS $TWOLAME_LIBS $LAME_LIBS"
 
 
 
