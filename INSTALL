@@ -12,6 +12,7 @@ Then as root:
  make install
 
 
+Rotter depends on JACK, which can be downloaded from <http://www.jackaudio.org/>
 To encode to MP3, Rotter requires LAME <http://lame.sf.net>
 To encode to MP2, Rotter requires TwoLAME <http://www.twolame.org>
 

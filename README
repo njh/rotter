@@ -11,6 +11,42 @@ What is Rotter ?
 
 Rotter is a Recording of Transmission / Audio Logger. It was designed for use 
 by radio stations, who are legally required to keep a recording of all their 
-output.
+output. Rotter runs continuously, writing to a new file every hour. 
 
- 
+
+Rotter can output files in two different strutures, either all files in a 
+single directory or create a directory structure:
+
+flat: /root_directory/YYYY-MM-DD-HH.suffix
+hierarchy: /root_directory/YYYY/MM/DD/HH/archive.suffix
+
+The advantage of using a folder hierarchy is that you can store related 
+files in the hour's directory.
+
+
+Usage
+-----
+
+rotter [options] <directory>
+   -a            Automatically connect JACK ports
+   -f <format>   Format of recording [mp2/mp3]
+   -b <bitrate>  Bitrate of recording
+   -c <channels> Number of channels
+   -n <name>     Name for this JACK client
+   -d <hours>    Delete files in directory older than this
+   -R <secs>     Length of the ring buffer (in seconds)
+   -H            Create folder hierarchy instead of flat files
+   -j            Don't automatically start jackd
+   -v            Enable verbose mode
+   -q            Enable quiet mode
+
+
+Example:
+rooter -a -f mp3 -d 1000 -b 128 -v /var/achives
+
+Start logging audio to hourly files in /var/archives.
+Rotter will automatically connect itself to the first two JACK output ports 
+it finds and encode to MPEG Layer 3 audio at 128kbps. Each hour it will 
+delete files older than 1000 hours (42 days). Verbose mode means it will 
+display more informational messages.
+
