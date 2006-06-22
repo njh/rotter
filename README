@@ -9,9 +9,10 @@ http://www.ecs.soton.ac.uk/~njh/rotter/
 What is Rotter ?
 ----------------
 
-Rotter is a Recording of Transmission / Audio Logger. It was designed for use 
-by radio stations, who are legally required to keep a recording of all their 
-output. Rotter runs continuously, writing to a new file every hour. 
+Rotter is a Recording of Transmission / Audio Logger for JACK. It was 
+designed for use by radio stations, who are legally required to keep 
+a recording of all their output. Rotter runs continuously, writing to 
+a new file every hour. 
 
 
 Rotter can output files in two different strutures, either all files in a 
