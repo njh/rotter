@@ -43,7 +43,7 @@ rotter [options] <directory>
 
 
 Example:
-rooter -a -f mp3 -d 1000 -b 128 -v /var/achives
+rotter -a -f mp3 -d 1000 -b 128 -v /var/achives
 [DEBUG]  Wed Jun 21 22:54:19 2006  Root directory: /var/archives
 [INFO]   Wed Jun 21 22:54:19 2006  JACK client registered as 'rotter'.
 [DEBUG]  Wed Jun 21 22:54:19 2006  Size of the ring buffers is 2.00 seconds (352800 bytes).
