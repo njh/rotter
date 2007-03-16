@@ -62,7 +62,7 @@ int running = 1;						// True while still running
 
 
 
-static OUTPUT_FORMAT_MAP format_map [] =
+output_format_map_t format_map [] =
 {
 
 #ifdef HAVE_LAME

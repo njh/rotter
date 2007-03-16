@@ -45,16 +45,6 @@
 
 
 
-// ------- Globals ---------
-extern jack_port_t *inport[2];
-extern jack_ringbuffer_t *ringbuffer[2];
-extern jack_client_t *client;
-extern time_t file_start;
-
-
-
-
-
 // ------- Logging ---------
 typedef enum {
 	ROTTER_DEBUG=1,		// Only display debug if verbose
@@ -101,7 +91,17 @@ typedef struct
 	const char	*desc ;
 	int			format ;
 	encoder_funcs_t* (*initfunc)( const char*, int, int );
-} OUTPUT_FORMAT_MAP ;
+} output_format_map_t ;
+
+
+
+
+// ------- Globals ---------
+extern jack_port_t *inport[2];
+extern jack_ringbuffer_t *ringbuffer[2];
+extern jack_client_t *client;
+extern time_t file_start;
+extern output_format_map_t format_map[];
 
 
 
