@@ -43,16 +43,6 @@
 #define DEFAULT_DELETE_HOURS	(0)
 
 
-// ----- Default Format -----
-#ifdef HAVE_TWOLAME
-  #define DEFAULT_FORMAT		"mp2"
-#else
-  #ifdef HAVE_LAME
-    #define DEFAULT_FORMAT		"mp3"
-  #else
-    #define DEFAULT_FORMAT		""
-  #endif
-#endif
 
 
 // ------- Globals ---------
@@ -60,6 +50,9 @@ extern jack_port_t *inport[2];
 extern jack_ringbuffer_t *ringbuffer[2];
 extern jack_client_t *client;
 extern time_t file_start;
+
+
+
 
 
 // ------- Logging ---------
@@ -85,7 +78,7 @@ typedef enum {
 
 
 
-// ------- Encoder Callbacks -------
+// ------- Structures -------
 
 typedef struct encoder_funcs_s
 {
@@ -103,6 +96,14 @@ typedef struct encoder_funcs_s
 } encoder_funcs_t;
 
 
+typedef struct
+{	const char	*name ;
+	const char	*desc ;
+	int			format ;
+	encoder_funcs_t* (*initfunc)( const char*, int, int );
+} OUTPUT_FORMAT_MAP ;
+
+
 
 
 
@@ -110,10 +111,13 @@ typedef struct encoder_funcs_s
 void rotter_log( RotterLogLevel level, const char* fmt, ... );
 
 // In twolame.c
-encoder_funcs_t* init_twolame( int channels, int bitrate );
+encoder_funcs_t* init_twolame( const char* format, int channels, int bitrate );
 
 // In lame.c
-encoder_funcs_t* init_lame( int channels, int bitrate );
+encoder_funcs_t* init_lame( const char* format, int channels, int bitrate );
+
+// In sndfile.c
+encoder_funcs_t* init_sndfile( const char* format, int channels, int bitrate );
 
 // In mpegaudiofile.c
 extern FILE* mpegaudio_file;

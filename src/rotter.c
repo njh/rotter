@@ -37,10 +37,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "rotter.h"
 #include "config.h"
+#include "rotter.h"
 
-
+#ifdef HAVE_SNDFILE
+#include <sndfile.h>
+#endif
 
 
 // ------- Globals -------
@@ -57,6 +59,38 @@ char *root_directory = NULL;			// Root directory of archives
 int delete_hours = DEFAULT_DELETE_HOURS;// Delete files after this many hours
 time_t file_start = 0;					// Start time of the open file
 int running = 1;						// True while still running
+
+
+
+static OUTPUT_FORMAT_MAP format_map [] =
+{
+
+#ifdef HAVE_LAME
+	{ "mp3",	"MPEG Audio Layer 3",				0, init_lame },
+#endif
+
+#ifdef HAVE_TWOLAME
+	{ "mp2",	"MPEG Audio Layer 2",				0, init_twolame },
+#endif
+
+#ifdef HAVE_SNDFILE
+	{ "aiff",	"AIFF (Apple/SGI 16 bit PCM)",		SF_FORMAT_AIFF | SF_FORMAT_PCM_16, init_sndfile },
+	{ "aiff32",	"AIFF (Apple/SGI 32 bit float)",	SF_FORMAT_AIFF | SF_FORMAT_FLOAT, init_sndfile },
+	{ "au",		"AU (Sun/Next 16 bit PCM)",			SF_FORMAT_AU | SF_FORMAT_PCM_16, init_sndfile	},
+	{ "au32",	"AU (Sun/Next 32 bit float)",		SF_FORMAT_AU | SF_FORMAT_FLOAT, init_sndfile },
+	{ "caf",	"CAF (Apple 16 bit PCM)",			SF_FORMAT_CAF |  SF_FORMAT_PCM_16, init_sndfile },
+	{ "caf32",	"CAF (Apple 32 bit float)",			SF_FORMAT_CAF |  SF_FORMAT_FLOAT, init_sndfile },
+	{ "flac",	"FLAC 16 bit",						SF_FORMAT_FLAC |  SF_FORMAT_PCM_16, init_sndfile },
+	{ "wav",	"WAV (Microsoft 16 bit PCM)",		SF_FORMAT_WAV | SF_FORMAT_PCM_16, init_sndfile },
+	{ "wav32",	"WAV (Microsoft 32 bit float)",		SF_FORMAT_WAV | SF_FORMAT_FLOAT, init_sndfile },
+#endif	
+	
+	// End of list
+	{ NULL,		NULL,								0 },
+	
+} ; /* format_map */
+
+
 
 
 
@@ -462,10 +496,10 @@ int main(int argc, char *argv[])
 	char *client_name = DEFAULT_CLIENT_NAME;
 	char *connect_left = NULL;
 	char *connect_right = NULL;
-	char *format = DEFAULT_FORMAT;
+	const char *format = format_map[0].name;
 	int bitrate = DEFAULT_BITRATE;
 	encoder_funcs_t* encoder = NULL;
-	int opt;
+	int i,opt;
 
 	// Make STDOUT unbuffered
 	setbuf(stdout, NULL);
@@ -526,12 +560,16 @@ int main(int argc, char *argv[])
 
 	
 	// Initialise encoder
-	if (strcmp( "mp2", format) == 0) {
-		encoder = init_twolame( channels, bitrate );
-	} else if (strcmp( "mp3", format) == 0) {
-		encoder = init_lame( channels, bitrate );
-	} else {
-		rotter_error("Don't know how to encode to format '%s'.", format);
+	for(i=0; format_map[i].name; i++) {
+		if (strcmp( format_map[i].name, format ) == 0) {
+			printf("Found format match :\n");
+			printf("  name=%s\n", format_map[i].name);
+			printf("  description=%s\n", format_map[i].desc);
+			printf("  format=0x%x\n", format_map[i].format);
+			
+			// Call the init function
+			encoder = format_map[i].initfunc( format, channels, bitrate );
+		}
 	}
 	
 	// Failure?

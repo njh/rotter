@@ -194,7 +194,7 @@ static const char* lame_get_mode_name( lame_global_flags *glopts )
 	else { return "Unknown Mode"; }
 }
 
-encoder_funcs_t* init_lame( int channels, int bitrate )
+encoder_funcs_t* init_lame( const char* format, int channels, int bitrate )
 {
 	encoder_funcs_t* funcs = NULL;
 
@@ -262,17 +262,6 @@ encoder_funcs_t* init_lame( int channels, int bitrate )
 
 
 	return funcs;
-}
-
-
-
-#else  // HAVE_LAME
-
-encoder_funcs_t* init_lame( int channels, int bitrate )
-{
-	
-	rotter_error( "LAME (MP3 codec) support was not available at compile time." );
-	return NULL;
 }
 
 #endif   // HAVE_LAME

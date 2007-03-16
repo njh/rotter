@@ -5,14 +5,14 @@ AC_PREREQ(2.57)
 
 dnl ############# Initialization
 
-AC_INIT([rotter], [0.1], [njh@ecs.soton.ac.uk])
+AC_INIT([rotter], [0.2], [njh@ecs.soton.ac.uk])
 
-AC_CONFIG_SRCDIR( src/rotter.c )
+AC_CONFIG_SRCDIR([src/rotter.c])
 AC_CANONICAL_SYSTEM
 
 dnl Version 1.7 of automake is recommended
-AM_INIT_AUTOMAKE( 1.7 )
-AM_CONFIG_HEADER( src/config.h )
+AM_INIT_AUTOMAKE([1.7])
+AM_CONFIG_HEADER([src/config.h])
 
 
 
@@ -36,7 +36,7 @@ PKG_CHECK_MODULES(JACK, jack >= 0.100.0)
 
 
 # Check for TwoLAME
-PKG_CHECK_MODULES(TWOLAME, twolame >= 0.3.7,
+PKG_CHECK_MODULES(TWOLAME, twolame >= 0.3.9,
 	[ HAVE_TWOLAME="Yes"
 	  AC_DEFINE(HAVE_TWOLAME, 1, [TwoLAME library is available])
 	], 
@@ -61,6 +61,19 @@ AC_CHECK_LIB(mp3lame, lame_get_version,
 )
 
 
+# Check for libsndfile
+PKG_CHECK_MODULES(SNDFILE, sndfile >= 1.0.14,
+	[ HAVE_SNDFILE="Yes"
+	  AC_DEFINE(HAVE_SNDFILE, 1, [SndFile library is available])
+	], 
+	[ HAVE_SNDFILE="No" 
+	  AC_MSG_WARN(Can't find libsndfile.)
+	]
+)
+
+
+
+
 
 dnl ############## Header Checks
 
@@ -78,8 +91,8 @@ AC_CHECK_FUNCS( usleep )
 
 dnl ############## Compiler and Linker Flags
 
-CFLAGS="$CFLAGS -Wunused -Wall $JACK_CFLAGS $TWOLAME_CFLAGS $LAME_CFLAGS"
-LDFLAGS="$LDFLAGS $JACK_LIBS $TWOLAME_LIBS $LAME_LIBS"
+CFLAGS="$CFLAGS -Wunused -Wall $JACK_CFLAGS $TWOLAME_CFLAGS $LAME_CFLAGS $SNDFILE_CFLAGS"
+LDFLAGS="$LDFLAGS $JACK_LIBS $TWOLAME_LIBS $LAME_LIBS $SNDFILE_LIBS"
 
 
 
@@ -93,8 +106,9 @@ dnl ############## Summary
 echo ""
 echo "Building $PACKAGE_NAME version $PACKAGE_VERSION."
 echo ""
-echo "     TwoLAME codec (MP2): $HAVE_TWOLAME "
-echo "        LAME codec (MP3): $HAVE_LAME "
+echo "         TwoLAME codec (MP2): $HAVE_TWOLAME "
+echo "            LAME codec (MP3): $HAVE_LAME "
+echo "   libsndfile (WAV/AIFF etc): $HAVE_SNDFILE "
 echo ""
 echo "Next type 'make' to begin compilation."
 

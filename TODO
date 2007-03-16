@@ -3,6 +3,10 @@ Rotter TODO List
 
 In order of priority:
  
+ - Make sure we stay on the same device when deleting files
+ 
+ - Make hourly file change more accurate by having a second ring buffer
+
  - Make Rotter compile with -std=c99
  
  - Write manual page
@@ -11,4 +15,3 @@ In order of priority:
  	- PCM audio/libsndfile
  	- FLAC
  	- Ogg Vorbis
- 

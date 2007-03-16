@@ -48,13 +48,12 @@ static jack_default_audio_sample_t *pcm_buffer[2]= {NULL,NULL};
 static unsigned char *mpeg_buffer=NULL;
 
 
-#define SAMPLES_PER_FRAME 		(1152)
 
 
 // Encode a frame of audio
 static int encode()
 {
-	jack_nframes_t samples = SAMPLES_PER_FRAME;
+	jack_nframes_t samples = TWOLAME_SAMPLES_PER_FRAME;
 	size_t desired = samples * sizeof( jack_default_audio_sample_t );
 	int channels = twolame_get_num_channels(twolame_opts);
 	int bytes_read=0, bytes_encoded=0, bytes_written=0;
@@ -141,7 +140,7 @@ static void shutdown()
 }
 
 
-encoder_funcs_t* init_twolame( int channels, int bitrate )
+encoder_funcs_t* init_twolame( const char* format, int channels, int bitrate )
 {
 	encoder_funcs_t* funcs = NULL;
 
@@ -187,7 +186,7 @@ encoder_funcs_t* init_twolame( int channels, int bitrate )
 						twolame_get_mode_name(twolame_opts));
 
 	// Allocate memory for encoded audio
-	mpeg_buffer = malloc( 1.25*SAMPLES_PER_FRAME + 7200 );
+	mpeg_buffer = malloc( 1.25*TWOLAME_SAMPLES_PER_FRAME + 7200 );
 	if ( mpeg_buffer==NULL ) {
 		rotter_error( "Failed to allocate memery for encoded audio." );
 		return NULL;
@@ -209,15 +208,6 @@ encoder_funcs_t* init_twolame( int channels, int bitrate )
 
 
 	return funcs;
-}
-
-#else  // HAVE_TWOLAME
-
-encoder_funcs_t* init_twolame( int channels, int bitrate )
-{
-	
-	rotter_error( "TwoLAME support (MP2 codec) was not available at compile time." );
-	return NULL;
 }
 
 #endif   // HAVE_TWOLAME
