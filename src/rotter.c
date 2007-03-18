@@ -471,11 +471,13 @@ static char* str_tolower( char* str )
 // Display how to use this program
 static void usage()
 {
+	int i;
+
 	printf("%s version %s\n\n", PACKAGE_NAME, PACKAGE_VERSION);
 	printf("Usage: %s [options] <directory>\n", PACKAGE_NAME);
 	printf("   -a            Automatically connect JACK ports\n");
-	printf("   -f <format>   Format of recording [mp2/mp3]\n");
-	printf("   -b <bitrate>  Bitrate of recording\n");
+	printf("   -f <format>   Format of recording (see list below)\n");
+	printf("   -b <bitrate>  Bitrate of recording (bitstream formats only)\n");
 	printf("   -c <channels> Number of channels\n");
 	printf("   -n <name>     Name for this JACK client\n");
 	printf("   -d <hours>    Delete files in directory older than this\n");
@@ -484,7 +486,18 @@ static void usage()
 	printf("   -j            Don't automatically start jackd\n");
 	printf("   -v            Enable verbose mode\n");
 	printf("   -q            Enable quiet mode\n");
+	
+	
+	// Display the available audio output formats
+	printf("\nSupported audio output formats:\n");
+	for(i=0; format_map[i].name; i++) {
+		printf("   %-6s        %s", format_map[i].name, format_map[i].desc );
+		if (i==0) printf("   [Default]");
+		printf("\n");
+	}
 	printf("\n");
+	
+	
 	exit(1);
 }
 
