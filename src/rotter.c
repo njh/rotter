@@ -46,19 +46,15 @@
 
 
 // ------- Globals -------
-jack_port_t *inport[2] = {NULL, NULL};
-jack_ringbuffer_t *ringbuffer[2] = {NULL, NULL};
-jack_client_t *client = NULL;
-
 int quiet = 0;							// Only display error messages
 int verbose = 0;						// Increase number of logging messages
 int hierarchy = 0;						// Flat files or folder hierarchy ?
+int running = 1;						// True while still running
 int channels = DEFAULT_CHANNELS;		// Number of input channels
 float rb_duration = DEFAULT_RB_LEN;		// Duration of ring buffer
 char *root_directory = NULL;			// Root directory of archives
 int delete_hours = DEFAULT_DELETE_HOURS;// Delete files after this many hours
 time_t file_start = 0;					// Start time of the open file
-int running = 1;						// True while still running
 
 
 
@@ -90,146 +86,6 @@ output_format_map_t format_map [] =
 	
 } ; /* format_map */
 
-
-
-
-
-// Callback called by JACK when audio is available
-static
-int callback_jack(jack_nframes_t nframes, void *arg)
-{
-    size_t to_write = sizeof (jack_default_audio_sample_t) * nframes;
-	unsigned int c;
-	
-	for (c=0; c < channels; c++)
-	{	
-        char *buf  = (char*)jack_port_get_buffer(inport[c], nframes);
-        size_t len = jack_ringbuffer_write(ringbuffer[c], buf, to_write);
-        if (len < to_write) {
-            rotter_fatal("Failed to write to ring ruffer.");
-            return 1;
-         }
-	}
-
-
-	// Success
-	return 0;
-}
-					
-
-
-static
-void shutdown_callback_jack(void *arg)
-{
-	rotter_error("Rotter quitting because jackd is shutting down." );
-	
-	// Signal the main thead to stop
-	running=0;
-}
-
-
-static
-void connect_jack_port( const char* out, jack_port_t *port )
-{
-	const char* in = jack_port_name( port );
-	int err;
-		
-	rotter_info("Connecting '%s' to '%s'", out, in);
-	
-	if ((err = jack_connect(client, out, in)) != 0) {
-		rotter_fatal("connect_jack_port(): failed to jack_connect() ports: %d",err);
-	}
-}
-
-
-// crude way of automatically connecting up jack ports
-static
-void autoconnect_jack_ports( jack_client_t* client )
-{
-	const char **all_ports;
-	unsigned int ch=0;
-	int i;
-
-	// Get a list of all the jack ports
-	all_ports = jack_get_ports(client, NULL, NULL, JackPortIsOutput);
-	if (!all_ports) {
-		rotter_fatal("autoconnect_jack_ports(): jack_get_ports() returned NULL.");
-	}
-	
-	// Step through each port name
-	for (i = 0; all_ports[i]; ++i) {
-		
-		// Connect the port
-		connect_jack_port( all_ports[i], inport[ch] );
-		
-		// Found enough ports ?
-		if (++ch >= channels) break;
-	}
-	
-	free( all_ports );
-}
-
-
-static
-void init_jack( const char* client_name, jack_options_t jack_opt ) 
-{
-	jack_status_t status;
-	size_t ringbuffer_size = 0;
-	int i;
-
-	// Register with Jack
-	if ((client = jack_client_open(client_name, jack_opt, &status)) == 0) {
-		rotter_fatal("Failed to start jack client: 0x%x", status);
-	}
-	rotter_info( "JACK client registered as '%s'.", jack_get_client_name( client ) );
-
-
-	// Create our input port(s)
-	if (channels==1) {
-		if (!(inport[0] = jack_port_register(client, "mono", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0))) {
-			rotter_fatal("Cannot register mono input port.");
-		}
-	} else {
-		if (!(inport[0] = jack_port_register(client, "left", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0))) {
-			rotter_fatal("Cannot register left input port.");
-		}
-		
-		if (!(inport[1] = jack_port_register(client, "right", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0))) {
-			rotter_fatal( "Cannot register left input port.");
-		}
-	}
-	
-	// Create ring buffers
-	ringbuffer_size = jack_get_sample_rate( client ) * rb_duration * sizeof(float);
-	rotter_debug("Size of the ring buffers is %2.2f seconds (%d bytes).", rb_duration, (int)ringbuffer_size );
-	for(i=0; i<channels; i++) {
-		if (!(ringbuffer[i] = jack_ringbuffer_create( ringbuffer_size ))) {
-			rotter_fatal("Cannot create ringbuffer.");
-		}
-	}
-	
-	// Register shutdown callback
-	jack_on_shutdown(client, shutdown_callback_jack, NULL );
-
-	// Register callback
-	jack_set_process_callback(client, callback_jack, NULL);
-	
-}
-
-
-static
-void finish_jack()
-{
-	int i;
-
-	// Leave the Jack graph
-	jack_client_close(client);
-	
-	// Free up the ring buffers
-	for(i=0; i<channels; i++) {
-		jack_ringbuffer_free( ringbuffer[i] );
-	}
-}
 
 
 
@@ -375,7 +231,7 @@ static char * time_to_filepath_flat( time_t clock, const char* suffix )
 	localtime_r( &clock, &tm );
 	
 	// Create the full file path
-	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d-%2.2d%s",
+	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d-%2.2d.%s",
 				root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
 
 	return filepath;
@@ -399,12 +255,11 @@ static char * time_to_filepath_hierarchy( time_t clock, const char* suffix )
 
 
 	// Create the full file path
-	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/archive%s",
+	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/archive.%s",
 				root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
 
 	return filepath;
 }
-
 
 
 static void main_loop( encoder_funcs_t* encoder )
@@ -441,10 +296,11 @@ static void main_loop( encoder_funcs_t* encoder )
 		}
 		
 
-		// Encode a frame of audio
-		int result = encoder->encode();
+		// Write some audio to disk
+		int result = encoder->write();
 		if (result == 0) {
 			// Sleep for 1/4 of the ringbuffer duration
+			rotter_debug("Failed to write some audio, sleeping for %f sec.", rb_duration/4);
 			usleep( (rb_duration/4) * 1000000 );
 		} else if (result < 0) {
 			rotter_fatal("Shutting down, due to encoding error.");
@@ -575,20 +431,27 @@ int main(int argc, char *argv[])
 	// Initialise encoder
 	for(i=0; format_map[i].name; i++) {
 		if (strcmp( format_map[i].name, format ) == 0) {
-			printf("Found format match :\n");
-			printf("  name=%s\n", format_map[i].name);
-			printf("  description=%s\n", format_map[i].desc);
-			printf("  format=0x%x\n", format_map[i].format);
-			
+			// Display information about the format
+			rotter_debug("User selected [%s] '%s'.",  format_map[i].name,  format_map[i].desc);
+
 			// Call the init function
-			encoder = format_map[i].initfunc( format, channels, bitrate );
+			if (format_map[i].initfunc == NULL) {
+				rotter_error("Error: no init function defined for format [%s].", format );
+			} else {
+				encoder = format_map[i].initfunc( format, channels, bitrate );
+			}
 		}
 	}
 	
-	// Failure?
+	// Failed to find match?
+	if (encoder==NULL && format_map[i].name==NULL) {
+		rotter_fatal("Failed to find format [%s], please check the supported format list.", format);
+	}
+	
+	// Other failure?
 	if (encoder==NULL) {
 		rotter_debug("Failed to initialise encoder.");
-		finish_jack();
+		deinit_jack();
 		exit(-1);
 	}
 
@@ -615,10 +478,10 @@ int main(int argc, char *argv[])
 	encoder->close();
 
 	// Shut down encoder
-	encoder->shutdown();
+	encoder->deinit();
 
 	// Clean up JACK
-	finish_jack();
+	deinit_jack();
 	
 	
 	return 0;

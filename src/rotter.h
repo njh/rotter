@@ -69,7 +69,6 @@ typedef enum {
 
 
 // ------- Structures -------
-
 typedef struct encoder_funcs_s
 {
 	const char* file_suffix;		// Suffix for archive files
@@ -78,10 +77,10 @@ typedef struct encoder_funcs_s
 	int (*open)(const char * filepath);	// Result: 0=success
 	int (*close)();						// Result: 0=success
 		
-	int (*encode)();				// Result: negative=error
+	int (*write)();					// Result: negative=error
 									//		   0= try again later
 									//         positive=bytes written
-	void (*shutdown)();
+	void (*deinit)();
 
 } encoder_funcs_t;
 
@@ -89,8 +88,8 @@ typedef struct encoder_funcs_s
 typedef struct
 {	const char	*name ;
 	const char	*desc ;
-	int			format ;
-	encoder_funcs_t* (*initfunc)( const char*, int, int );
+	int			param ;
+	encoder_funcs_t* (*initfunc)( const char* format, int channels, int bitrate );
 } output_format_map_t ;
 
 
@@ -102,13 +101,23 @@ extern jack_ringbuffer_t *ringbuffer[2];
 extern jack_client_t *client;
 extern time_t file_start;
 extern output_format_map_t format_map[];
+extern int running;				// True while still running
+extern int channels;			// Number of input channels
+extern float rb_duration;		// Duration of ring buffer
 
 
 
 
+// ------- Prototypes -------
 
 // In rotter.c
 void rotter_log( RotterLogLevel level, const char* fmt, ... );
+
+// In jack.c
+void init_jack( const char* client_name, jack_options_t jack_opt );
+void connect_jack_port( const char* out, jack_port_t *port );
+void autoconnect_jack_ports( jack_client_t* client );
+void deinit_jack();
 
 // In twolame.c
 encoder_funcs_t* init_twolame( const char* format, int channels, int bitrate );
@@ -120,12 +129,12 @@ encoder_funcs_t* init_lame( const char* format, int channels, int bitrate );
 encoder_funcs_t* init_sndfile( const char* format, int channels, int bitrate );
 
 // In mpegaudiofile.c
-extern FILE* mpegaudio_file;
+FILE* mpegaudio_file;
 int close_mpegaudio_file();
 int open_mpegaudio_file( const char* filepath );
 
 // In deletefiles.c
-extern void delete_files( const char* dir, int hours );
+void delete_files( const char* dir, int hours );
 
 
 #endif

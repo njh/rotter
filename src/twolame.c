@@ -50,12 +50,13 @@ static unsigned char *mpeg_buffer=NULL;
 
 
 
-// Encode a frame of audio
-static int encode()
+/*
+	Encode and write some audio from the ring buffer to disk
+*/
+static int write_twolame()
 {
 	jack_nframes_t samples = TWOLAME_SAMPLES_PER_FRAME;
 	size_t desired = samples * sizeof( jack_default_audio_sample_t );
-	int channels = twolame_get_num_channels(twolame_opts);
 	int bytes_read=0, bytes_encoded=0, bytes_written=0;
 	int c=0;
 	
@@ -77,7 +78,7 @@ static int encode()
 	// Take audio out of the ring buffer
     for (c=0; c<channels; c++)
     {    
- 		// Ensure the temporary buffer is big enough
+		// Ensure the temporary buffer is big enough
 		pcm_buffer[c] = (jack_default_audio_sample_t*)realloc(pcm_buffer[c], desired );
 		if (!pcm_buffer[c]) rotter_fatal( "realloc on tmp_buffer failed" );
 
@@ -116,20 +117,17 @@ static int encode()
 
 
 
-static void shutdown()
+static void deinit_twolame()
 {
-
-	rotter_debug("Closing down TwoLAME encoder.");
+	int c;
+	rotter_debug("Shutting down TwoLAME encoder.");
 	twolame_close( &twolame_opts );
 
-	if (pcm_buffer[0]) {
-		free(pcm_buffer[0]);
-		pcm_buffer[0]=NULL;
-	}
-	
-	if (pcm_buffer[1]) {
-		free(pcm_buffer[1]);
-		pcm_buffer[1]=NULL;
+	for( c=0; c<2; c++) {
+		if (pcm_buffer[c]) {
+			free(pcm_buffer[c]);
+			pcm_buffer[c]=NULL;
+		}
 	}
 	
 	if (mpeg_buffer) {
@@ -176,7 +174,7 @@ encoder_funcs_t* init_twolame( const char* format, int channels, int bitrate )
     }
     
 
-	rotter_info( "Encoding using libtwolame version %s.", get_twolame_version() );
+	rotter_debug( "Encoding using libtwolame version %s.", get_twolame_version() );
 	rotter_debug( "  Input: %d Hz, %d channels",
 						twolame_get_in_samplerate(twolame_opts),
 						twolame_get_num_channels(twolame_opts));
@@ -200,11 +198,11 @@ encoder_funcs_t* init_twolame( const char* format, int channels, int bitrate )
     }
 	
 
-	funcs->file_suffix = ".mp2";
+	funcs->file_suffix = "mp2";
 	funcs->open = open_mpegaudio_file;
 	funcs->close = close_mpegaudio_file;
-	funcs->encode = encode;
-	funcs->shutdown = shutdown;
+	funcs->write = write_twolame;
+	funcs->deinit = deinit_twolame;
 
 
 	return funcs;

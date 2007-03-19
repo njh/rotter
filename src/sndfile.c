@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <signal.h>
 
@@ -45,16 +46,21 @@
 // ------ Globals ---------
 static SNDFILE *sndfile = NULL;
 static SF_INFO sfinfo;
-static jack_default_audio_sample_t *pcm_buffer[2]= {NULL,NULL};
+static jack_default_audio_sample_t *interleaved_buffer = NULL;
+static jack_default_audio_sample_t *tmp_buffer[2] = {NULL,NULL};
+static const jack_nframes_t read_size = 256;	// Write 256 samples to disk at a time 
 
 
-// Encode a frame of audio
-static int encode_sndfile()
+
+/*
+	Write some audio from the ring buffer to disk
+*/
+static int write_sndfile()
 {
-	//jack_nframes_t samples = 1152;
-	//size_t desired = samples * sizeof( jack_default_audio_sample_t );
-	//int bytes_read=0, bytes_encoded=0, bytes_written=0;
-	//int c=0;
+	size_t desired = read_size * sizeof( jack_default_audio_sample_t );
+	sf_count_t frames_in_buf = 0;
+	sf_count_t frames_written = 0;
+	int i,c, bytes_read=0;
 	
 	// Check that the output file is open
 	if (sndfile==NULL) {
@@ -65,61 +71,66 @@ static int encode_sndfile()
 	}
 	
 	// Is the enough in the ring buffer?
-	//if (jack_ringbuffer_read_space( ringbuffer[0] ) < desired) {
+	if (jack_ringbuffer_read_space( ringbuffer[0] ) < desired) {
 		// Try again later
-	//	return 0;
-	//}
+		return 0;
+	}
 	
+	// Get the audio out of the ring buffer
+    for (c=0; c<channels; c++)
+    {    
+		// Ensure the temporary buffer is big enough
+		tmp_buffer[c] = (jack_default_audio_sample_t*)realloc(tmp_buffer[c], desired );
+		if (!tmp_buffer[c]) rotter_fatal( "realloc on tmp_buffer failed" );
 
-	// Take audio out of the ring buffer
-    //for (c=0; c<sfinfo.channels; c++)
-    //{    
- 	//	// Ensure the temporary buffer is big enough
-	//	pcm_buffer[c] = (jack_default_audio_sample_t*)realloc(pcm_buffer[c], desired );
-	//	if (!pcm_buffer[c]) rotter_fatal( "realloc on tmp_buffer failed" );
-	//
-	//	// Copy frames from ring buffer to temporary buffer
-    //   bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)pcm_buffer[c], desired);
-	//	if (bytes_read != desired) {
-	//		rotter_fatal( "Failed to read desired number of bytes from ringbuffer." );
-	//	}
-    //}
+		// Copy frames from ring buffer to temporary buffer
+        bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)tmp_buffer[c], desired);
+		if (bytes_read != desired) {
+			rotter_fatal( "Failed to read desired number of bytes from ringbuffer." );
+		}
+    }
 
-
-
+	// Interleave the audio into yet another buffer
+	interleaved_buffer = (jack_default_audio_sample_t*)realloc(interleaved_buffer, desired*channels );
+	for (c=0; c<channels; c++)
+	{    
+		for(i=0;i<read_size;i++) {
+			interleaved_buffer[(i*channels)+c] = tmp_buffer[c][i];
+		}
+	}
+		
 	// Write it to disk
-	//sf_count_t  sf_write_float   (sndfile, float *ptr, sf_count_t items) ;
-	//bytes_written = fwrite( mpeg_buffer, 1, bytes_encoded, mpegaudio_file);
-	//if (bytes_written != bytes_encoded) {
-	//	rotter_error( "Warning: failed to write encoded audio to disk.");
-	//	return -1;
-	//}
+	frames_written = sf_writef_float(sndfile, interleaved_buffer, read_size) ;
+	if (frames_written != read_size) {
+		rotter_error( "Warning: failed to write audio to disk: %s", sf_strerror( sndfile ));
+		return -1;
+	}
 	
 
 	// Success
-	//return bytes_written;
-	return 0;
-
+	return frames_written;
 }
 
 
 
 
-static void shutdown_sndfile()
+static void deinit_sndfile()
 {
+	int c;
+	
+	rotter_debug("Shutting down sndfile encoder.");
 
-	rotter_debug("Closing down sndfile encoder.");
-
-	if (pcm_buffer[0]) {
-		free(pcm_buffer[0]);
-		pcm_buffer[0]=NULL;
+	for(c=0;c<2;c++) {
+		if (tmp_buffer[c]) {
+			free(tmp_buffer[c]);
+			tmp_buffer[c]=NULL;
+		}
 	}
 	
-	if (pcm_buffer[1]) {
-		free(pcm_buffer[1]);
-		pcm_buffer[1]=NULL;
+	if (interleaved_buffer) {
+		free(interleaved_buffer);
+		interleaved_buffer=NULL;
 	}
-	
 }
 
 
@@ -152,11 +163,11 @@ static int open_sndfile( const char* filepath )
 		close_sndfile();
 	}
 
-	//sndfile = fopen( filepath, "ab" );
-	//if (mpegaudio_file==NULL) {
-	//	rotter_error( "Failed to open output file: %s", strerror(errno) );
+	sndfile = sf_open( filepath, SFM_WRITE, &sfinfo );
+	if (sndfile==NULL) {
+		rotter_error( "Failed to open output file: %s", sf_strerror(NULL) );
 		return -1;
-	//}
+	}
 
 	// Success
 	return 0;
@@ -165,39 +176,49 @@ static int open_sndfile( const char* filepath )
 
 
 
-encoder_funcs_t* init_sndfile( const char* format, int channels, int bitrate )
+encoder_funcs_t* init_sndfile( const char* fmt_str, int channels, int bitrate )
 {
 	encoder_funcs_t* funcs = NULL;
 	char sndlibver[128];
-	int k,format_count=0;
-	SF_FORMAT_INFO	format_info;
+	SF_FORMAT_INFO format_info;
+	SF_FORMAT_INFO subformat_info;
+	int i;
+
+	// Zero the SF_INFO structure
+	bzero( &sfinfo, sizeof( sfinfo ) );
+
+	// Lookup the format parameters
+	for(i=0; format_map[i].name; i++) {
+		if (strcmp( format_map[i].name, fmt_str ) == 0) {
+			sfinfo.format = format_map[i].param;
+		}
+	}
+	
+	// Check it found something
+	if (sfinfo.format == 0x00) {
+		rotter_error( "No libsndfile format flags defined for [%s]\n", fmt_str );
+		return NULL;
+	}
 	
 	// Get the version of libsndfile
 	sf_command(NULL, SFC_GET_LIB_VERSION, sndlibver, sizeof(sndlibver));
+	rotter_debug( "Encoding using libsndfile version %s.", sndlibver );
+
+	// Lookup inforamtion about the format and subtype
+	format_info.format = sfinfo.format & SF_FORMAT_TYPEMASK;
+	sf_command (NULL, SFC_GET_FORMAT_INFO, &format_info, sizeof(format_info));
+	subformat_info.format = sfinfo.format & SF_FORMAT_SUBMASK;
+	sf_command (NULL, SFC_GET_FORMAT_INFO, &subformat_info, sizeof(subformat_info));
 
 
-	
-	rotter_info( "Encoding using libsndfile version %s.", sndlibver );
-/*	rotter_debug( "  Input: %d Hz, %d channels",
-						twolame_get_in_samplerate(twolame_opts),
-						twolame_get_num_channels(twolame_opts));
-	rotter_debug( "  Output: %s Layer 2, %d kbps, %s",
-						twolame_get_version_name(twolame_opts),
-						twolame_get_bitrate(twolame_opts),
-						twolame_get_mode_name(twolame_opts));
-*/
+	// Fill in the rest of the SF_INFO data structure
+	sfinfo.samplerate = jack_get_sample_rate( client );
+	sfinfo.channels = channels;
 
-	// Get the number of supported formats
-	sf_command (NULL, SFC_GET_SIMPLE_FORMAT_COUNT, &format_count, sizeof(format_count)) ;
-	printf("Number of supported formats: %d\n", format_count );
+	// Display info about input/output
+	rotter_debug( "  Input: %d Hz, %d channels", sfinfo.samplerate, sfinfo.channels );
+	rotter_debug( "  Output: %s, %s.", format_info.name, subformat_info.name );
 	
-	for (k = 0 ; k < format_count ; k++)
-	{   format_info.format = k ;
-            sf_command (sndfile, SFC_GET_SIMPLE_FORMAT, &format_info, sizeof (format_info)) ;
-            printf ("0x%08x  %s %s\n", format_info.format, format_info.name, format_info.extension) ;
-	} ;
-	
-	exit(-1);
 
 	// Allocate memory for callback functions
 	funcs = calloc( 1, sizeof(encoder_funcs_t) );
@@ -206,12 +227,13 @@ encoder_funcs_t* init_sndfile( const char* format, int channels, int bitrate )
 		return NULL;
     }
 	
-
-	funcs->file_suffix = ".mp2";
+	
+	// Fill in the encoder callback functions
+	funcs->file_suffix = format_info.extension;
 	funcs->open = open_sndfile;
 	funcs->close = close_sndfile;
-	funcs->encode = encode_sndfile;
-	funcs->shutdown = shutdown_sndfile;
+	funcs->write = write_sndfile;
+	funcs->deinit = deinit_sndfile;
 
 
 	return funcs;

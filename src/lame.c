@@ -71,11 +71,12 @@ static void float32_to_short(
 }
 
 
-// Encode a frame of audio
-static int encode()
+/*
+	Encode and write some audio from the ring buffer to disk
+*/
+static int write_lame()
 {
 	jack_nframes_t samples = SAMPLES_PER_FRAME;
-	int channels = lame_get_num_channels(lame_opts);
 	size_t f32_desired = samples * sizeof( jack_default_audio_sample_t );
 	size_t i16_desired = samples * sizeof( short int );
 	int bytes_read=0, bytes_encoded=0, bytes_written=0;
@@ -145,10 +146,11 @@ static int encode()
 
 
 
-static void shutdown()
+static void deinit_lame()
 {
-
-	rotter_debug("Closing down LAME encoder.");
+	int c;
+	
+	rotter_debug("Shutting down LAME encoder.");
 	lame_close( lame_opts );
 
 	if (f32_buffer) {
@@ -156,14 +158,11 @@ static void shutdown()
 		f32_buffer=NULL;
 	}
 	
-	if (i16_buffer[0]) {
-		free(i16_buffer[0]);
-		i16_buffer[0]=NULL;
-	}
-	
-	if (i16_buffer[1]) {
-		free(i16_buffer[1]);
-		i16_buffer[1]=NULL;
+	for( c=0; c<2; c++) {
+		if (i16_buffer[c]) {
+			free(i16_buffer[c]);
+			i16_buffer[c]=NULL;
+		}
 	}
 	
 	if (mpeg_buffer) {
@@ -254,11 +253,11 @@ encoder_funcs_t* init_lame( const char* format, int channels, int bitrate )
     }
 	
 
-	funcs->file_suffix = ".mp3";
+	funcs->file_suffix = "mp3";
 	funcs->open = open_mpegaudio_file;
 	funcs->close = close_mpegaudio_file;
-	funcs->encode = encode;
-	funcs->shutdown = shutdown;
+	funcs->write = write_lame;
+	funcs->deinit = deinit_lame;
 
 
 	return funcs;
