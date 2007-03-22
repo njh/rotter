@@ -58,7 +58,6 @@ static const jack_nframes_t read_size = 256;	// Write 256 samples to disk at a t
 static int write_sndfile()
 {
 	size_t desired = read_size * sizeof( jack_default_audio_sample_t );
-	sf_count_t frames_in_buf = 0;
 	sf_count_t frames_written = 0;
 	int i,c, bytes_read=0;
 	
