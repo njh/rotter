@@ -1,3 +1,11 @@
+Version 0.2 (2007-03-22)
+------------------------
+
+- Added libsndfile support
+- Moved Jack functions from rotter.c to jack.c
+- Now displays the available audio output formats
+- Added manpage
+
 
 Version 0.1 (2006-06-21)
 ------------------------

@@ -5,15 +5,6 @@ In order of priority:
  
  - Use Mutex and conditions, like in the Jack capture client example
  
- - Make sure we stay on the same device when deleting files
- 
  - Make hourly file change more accurate by having a second ring buffer
 
- - Make Rotter compile with -std=c99
- 
- - Write manual page
- 
- - Support other formats?
- 	- PCM audio/libsndfile
- 	- FLAC
- 	- Ogg Vorbis
+ - Support Ogg Vorbis?
