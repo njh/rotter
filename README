@@ -20,6 +20,7 @@ single directory or create a directory structure:
 
 flat: /root_directory/YYYY-MM-DD-HH.suffix
 hierarchy: /root_directory/YYYY/MM/DD/HH/archive.suffix
+combo: /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix
 
 The advantage of using a folder hierarchy is that you can store related 
 files in the hour's directory.
@@ -28,18 +29,37 @@ files in the hour's directory.
 Usage
 -----
 
-rotter [options] <directory>
+rotter [options] <root_directory>
    -a            Automatically connect JACK ports
-   -f <format>   Format of recording [mp2/mp3]
-   -b <bitrate>  Bitrate of recording
+   -f <format>   Format of recording (see list below)
+   -b <bitrate>  Bitrate of recording (bitstream formats only)
    -c <channels> Number of channels
    -n <name>     Name for this JACK client
+   -N <filename> Name for archive files (default 'archive')
    -d <hours>    Delete files in directory older than this
    -R <secs>     Length of the ring buffer (in seconds)
-   -H            Create folder hierarchy instead of flat files
+   -L <layout>   File layout (default 'hierarchy')
    -j            Don't automatically start jackd
    -v            Enable verbose mode
    -q            Enable quiet mode
+
+Supported file layouts:
+   flat          /root_directory/YYYY-MM-DD-HH.suffix
+   hierarchy     /root_directory/YYYY/MM/DD/HH/archive.suffix
+   combo         /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix
+
+Supported audio output formats:
+   mp3           MPEG Audio Layer 3   [Default]
+   mp2           MPEG Audio Layer 2
+   aiff          AIFF (Apple/SGI 16 bit PCM)
+   aiff32        AIFF (Apple/SGI 32 bit float)
+   au            AU (Sun/Next 16 bit PCM)
+   au32          AU (Sun/Next 32 bit float)
+   caf           CAF (Apple 16 bit PCM)
+   caf32         CAF (Apple 32 bit float)
+   flac          FLAC 16 bit
+   wav           WAV (Microsoft 16 bit PCM)
+   wav32         WAV (Microsoft 32 bit float)
 
 
 Example:

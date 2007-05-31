@@ -48,7 +48,8 @@
 // ------- Globals -------
 int quiet = 0;							// Only display error messages
 int verbose = 0;						// Increase number of logging messages
-int hierarchy = 0;						// Flat files or folder hierarchy ?
+char* file_layout = DEFAULT_FILE_LAYOUT;// File layout: Flat files or folder hierarchy ?
+char* archive_name = NULL;				// Archive file name
 int running = 1;						// True while still running
 int channels = DEFAULT_CHANNELS;		// Number of input channels
 float rb_duration = DEFAULT_RB_LEN;		// Duration of ring buffer
@@ -230,9 +231,15 @@ static char * time_to_filepath_flat( time_t clock, const char* suffix )
 	
 	localtime_r( &clock, &tm );
 	
-	// Create the full file path
-	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d-%2.2d.%s",
-				root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+	if (archive_name) {
+		// Create the full file path
+		snprintf( filepath, MAX_FILEPATH_LEN, "%s/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
+					root_directory, archive_name, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+	} else {
+		// Create the full file path
+		snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d-%2.2d.%s",
+					root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+	}
 
 	return filepath;
 }
@@ -255,8 +262,43 @@ static char * time_to_filepath_hierarchy( time_t clock, const char* suffix )
 
 
 	// Create the full file path
-	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/archive.%s",
-				root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+	if (archive_name) {
+		snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s.%s",
+				root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, archive_name, suffix );
+	} else {
+		snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s.%s",
+				root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, DEFAULT_ARCHIVE_NAME, suffix );
+	}
+
+
+	return filepath;
+}
+
+
+static char * time_to_filepath_combo( time_t clock, const char* suffix )
+{
+	struct tm tm;
+	char* filepath = malloc( MAX_FILEPATH_LEN );
+	
+	
+	localtime_r( &clock, &tm );
+	
+	// Make sure the parent directories exists
+	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
+				root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour );
+
+	if (mkdir_p( filepath ))
+		rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
+
+
+	// Create the full file path
+	if (archive_name) {
+		snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
+					root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, archive_name, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+	} else {
+		snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%4.4d-%2.2d-%2.2d-%2.2d.%s",
+					root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+	}
 
 	return filepath;
 }
@@ -272,10 +314,14 @@ static void main_loop( encoder_funcs_t* encoder )
 		// Time to change file?
 		if (file_start != this_hour) {
 			char* filepath;
-			if (hierarchy) {
+			if (file_layout[0] == 'h' || file_layout[0] == 'H') {
 				filepath = time_to_filepath_hierarchy( this_hour, encoder->file_suffix );
-			} else {
+			} else if (file_layout[0] == 'f' || file_layout[0] == 'F') {
 				filepath = time_to_filepath_flat( this_hour, encoder->file_suffix );
+			} else if (file_layout[0] == 'c' || file_layout[0] == 'C') {
+				filepath = time_to_filepath_combo( this_hour, encoder->file_suffix );
+			} else {
+				rotter_fatal("Unknown file layout: %s", file_layout);
 			}
 			
 			rotter_info( "Starting new archive file: %s", filepath );
@@ -330,19 +376,24 @@ static void usage()
 	int i;
 
 	printf("%s version %s\n\n", PACKAGE_NAME, PACKAGE_VERSION);
-	printf("Usage: %s [options] <directory>\n", PACKAGE_NAME);
+	printf("Usage: %s [options] <root_directory>\n", PACKAGE_NAME);
 	printf("   -a            Automatically connect JACK ports\n");
 	printf("   -f <format>   Format of recording (see list below)\n");
 	printf("   -b <bitrate>  Bitrate of recording (bitstream formats only)\n");
 	printf("   -c <channels> Number of channels\n");
 	printf("   -n <name>     Name for this JACK client\n");
+	printf("   -N <filename> Name for archive files (default 'archive')\n");
 	printf("   -d <hours>    Delete files in directory older than this\n");
 	printf("   -R <secs>     Length of the ring buffer (in seconds)\n");
-	printf("   -H            Create folder hierarchy instead of flat files\n");
+	printf("   -L <layout>   File layout (default 'hierarchy')\n");
 	printf("   -j            Don't automatically start jackd\n");
 	printf("   -v            Enable verbose mode\n");
 	printf("   -q            Enable quiet mode\n");
 	
+	printf("\nSupported file layouts:\n");
+	printf("   flat          /root_directory/YYYY-MM-DD-HH.suffix\n");
+	printf("   hierarchy     /root_directory/YYYY/MM/DD/HH/archive.suffix\n");
+	printf("   combo         /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix\n");
 	
 	// Display the available audio output formats
 	printf("\nSupported audio output formats:\n");
@@ -374,19 +425,20 @@ int main(int argc, char *argv[])
 	setbuf(stdout, NULL);
 
 	// Parse Switches
-	while ((opt = getopt(argc, argv, "al:r:n:jf:b:d:c:R:Hvqh")) != -1) {
+	while ((opt = getopt(argc, argv, "al:r:n:N:jf:b:d:c:R:L:vqh")) != -1) {
 		switch (opt) {
 			case 'a':  autoconnect = 1; break;
 			case 'l':  connect_left = optarg; break;
 			case 'r':  connect_right = optarg; break;
 			case 'n':  client_name = optarg; break;
+			case 'N':  archive_name = optarg; break;
 			case 'j':  jack_opt |= JackNoStartServer; break;
 			case 'f':  format = str_tolower(optarg); break;
 			case 'b':  bitrate = atoi(optarg); break;
 			case 'd':  delete_hours = atoi(optarg); break;
 			case 'c':  channels = atoi(optarg); break;
 			case 'R':  rb_duration = atof(optarg); break;
-			case 'H':  hierarchy = 1; break;
+			case 'L':  file_layout = optarg; break;
 			case 'v':  verbose = 1; break;
 			case 'q':  quiet = 1; break;
 			default:  usage(); break;

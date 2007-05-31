@@ -38,6 +38,8 @@
 #define MAX_FILEPATH_LEN		(1024)
 #define DEFAULT_DIR_MODE		(0755)
 #define DEFAULT_CLIENT_NAME		"rotter"
+#define DEFAULT_ARCHIVE_NAME	"archive"
+#define DEFAULT_FILE_LAYOUT		"hierarchy"
 #define DEFAULT_BITRATE			(160)
 #define DEFAULT_CHANNELS		(2)
 #define DEFAULT_DELETE_HOURS	(0)

@@ -1,3 +1,10 @@
+Version 0.3 (2007-05-31)
+------------------------
+
+- Added 'combo' file layout (thanks to Drew Roberts)
+- Added support for choice of archive file name
+
+
 Version 0.2 (2007-03-22)
 ------------------------
 
