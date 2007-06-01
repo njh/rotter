@@ -21,6 +21,7 @@ single directory or create a directory structure:
 flat: /root_directory/YYYY-MM-DD-HH.suffix
 hierarchy: /root_directory/YYYY/MM/DD/HH/archive.suffix
 combo: /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix
+dailydir: /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH.suffix
 
 The advantage of using a folder hierarchy is that you can store related 
 files in the hour's directory.

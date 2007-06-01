@@ -310,6 +310,34 @@ static char * time_to_filepath_combo( time_t clock, const char* suffix )
 	return filepath;
 }
 
+static char * time_to_filepath_dailydir( time_t clock, const char* suffix )
+{
+	struct tm tm;
+	char* filepath = malloc( MAX_FILEPATH_LEN );
+	
+	
+	localtime_r( &clock, &tm );
+	
+	// Make sure the parent directories exists
+	snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d",
+				root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday );
+
+	if (mkdir_p( filepath ))
+		rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
+
+
+	// Create the full file path
+	if (archive_name) {
+		snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
+					root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, archive_name, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+	} else {
+		snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%4.4d-%2.2d-%2.2d-%2.2d.%s",
+					root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+	}
+
+	return filepath;
+}
+
 
 static void main_loop( encoder_funcs_t* encoder )
 {
@@ -327,6 +355,8 @@ static void main_loop( encoder_funcs_t* encoder )
 				filepath = time_to_filepath_flat( this_hour, encoder->file_suffix );
 			} else if (file_layout[0] == 'c' || file_layout[0] == 'C') {
 				filepath = time_to_filepath_combo( this_hour, encoder->file_suffix );
+			} else if (file_layout[0] == 'd' || file_layout[0] == 'D') {
+				filepath = time_to_filepath_dailydir( this_hour, encoder->file_suffix );
 			} else {
 				rotter_fatal("Unknown file layout: %s", file_layout);
 			}
@@ -401,6 +431,7 @@ static void usage()
 	printf("   flat          /root_directory/YYYY-MM-DD-HH.suffix\n");
 	printf("   hierarchy     /root_directory/YYYY/MM/DD/HH/archive.suffix\n");
 	printf("   combo         /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix\n");
+	printf("   dailydir      /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH.suffix\n");
 	
 	// Display the available audio output formats
 	printf("\nSupported audio output formats:\n");
@@ -499,6 +530,9 @@ int main(int argc, char *argv[])
 			} else {
 				encoder = format_map[i].initfunc( format, channels, bitrate );
 			}
+			
+			// Found encoder
+			break;
 		}
 	}
 	

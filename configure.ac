@@ -5,7 +5,7 @@ AC_PREREQ(2.57)
 
 dnl ############# Initialization
 
-AC_INIT([rotter], [0.3], [njh@ecs.soton.ac.uk])
+AC_INIT([rotter], [0.4], [njh@ecs.soton.ac.uk])
 
 AC_CONFIG_SRCDIR([src/rotter.c])
 AC_CANONICAL_SYSTEM
@@ -91,7 +91,7 @@ AC_CHECK_FUNCS( usleep )
 
 dnl ############## Compiler and Linker Flags
 
-CFLAGS="$CFLAGS -Wunused -Wall $JACK_CFLAGS $TWOLAME_CFLAGS $LAME_CFLAGS $SNDFILE_CFLAGS"
+CFLAGS="$CFLAGS -Wunused -Wall -std=c99 -pedantic $JACK_CFLAGS $TWOLAME_CFLAGS $LAME_CFLAGS $SNDFILE_CFLAGS"
 LDFLAGS="$LDFLAGS $JACK_LIBS $TWOLAME_LIBS $LAME_LIBS $SNDFILE_LIBS"
 
 

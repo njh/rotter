@@ -56,17 +56,17 @@ typedef enum {
 } RotterLogLevel;
 
 
-#define rotter_debug( args... ) \
-		rotter_log( ROTTER_DEBUG, args )
+#define rotter_debug( ... ) \
+		rotter_log( ROTTER_DEBUG, __VA_ARGS__ )
 
-#define rotter_info( args... ) \
-		rotter_log( ROTTER_INFO, args )
+#define rotter_info( ... ) \
+		rotter_log( ROTTER_INFO, __VA_ARGS__ )
 
-#define rotter_error( args... ) \
-		rotter_log( ROTTER_ERROR, args )
+#define rotter_error( ... ) \
+		rotter_log( ROTTER_ERROR, __VA_ARGS__ )
 
-#define rotter_fatal( args... ) \
-		rotter_log( ROTTER_FATAL, args )
+#define rotter_fatal( ... ) \
+		rotter_log( ROTTER_FATAL, __VA_ARGS__ )
 
 
 

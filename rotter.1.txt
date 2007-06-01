@@ -26,6 +26,8 @@ a single directory or create a directory structure:
   
   flat: /root_directory/YYYY-MM-DD-HH.suffix
   hierarchy: /root_directory/YYYY/MM/DD/HH/archive.suffix
+  combo: /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix
+  dailydir: /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH.suffix
   
   
 The advantage of using a folder hierarchy is that you can store related 
@@ -53,6 +55,9 @@ OPTIONS
 	
 -n <name>::
         Choose the name of the Jack client to register as.
+
+-N <filename>::
+        Choose a filename prefix for the archive files created (default 'archive').
 	
 -d <hours>::
         Specifies the number of hours of audio to keep before it is 
@@ -64,9 +69,9 @@ OPTIONS
         between the internal audio grabber and the audio encoder. If you have
         a slow machine you might want to try increating the size of the buffer.
 	
--H::
-        Create a hierarchy of folders, instead of storing the log files in 
-        a single directory.
+-L <layout>::
+        Choose a file layout option for the archive files created.
+        See above for a list.
 
 -j::
         By default rotter will automatically try and start jackd if it 

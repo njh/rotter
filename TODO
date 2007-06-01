@@ -3,7 +3,7 @@ Rotter TODO List
 
 In order of priority:
  
- - Use Mutex and conditions, like in the Jack capture client example
+ - Use mutex and conditions, like in the Jack capture client example
  
  - Make hourly file change more accurate by having a second ring buffer
 

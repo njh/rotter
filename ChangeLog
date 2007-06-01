@@ -1,3 +1,13 @@
+Version 0.4 (2007-06-01)
+------------------------
+
+- Added -std=c99 to CFLAGS
+- Fixed incorect month in ID3 writing code
+- Now gracefully exits when there is a fatal error while encoding
+- Added 'dailydir' file layout (as requested by Michael Schael)
+- Updated manual page
+
+
 Version 0.3 (2007-05-31)
 ------------------------
 
