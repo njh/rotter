@@ -67,7 +67,7 @@ typedef struct id3v1_s
 	char album[30];
 	char year[4];
 	char comment[30];
-	char genre;
+	unsigned char genre;
 } id3v1_t;
 
 
