@@ -134,7 +134,7 @@ static void write_id3v1()
 	
 	// Title
 	snprintf( id3.title, sizeof(id3.title), "Recorded %4.4d-%2.2d-%2.2d %2.2d:%2.2d",
-				tm.tm_year+1900, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min );
+				tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, tm.tm_min );
 
 	// Artist - hostname
 	hostname = gethostname_fqdn();
