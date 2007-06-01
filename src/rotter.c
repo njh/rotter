@@ -140,9 +140,16 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... )
 	printf( "\n" );
 	va_end( args );
 	
-	// If fatal then exit
-	if (level == ROTTER_FATAL) exit( -1 );
-	
+	// If fatal then stop
+	if (level == ROTTER_FATAL) {
+		if (running) {
+			// Quit gracefully
+			running = 0;
+		} else {
+			printf( "Fatal error while quiting; exiting immediately." );
+			exit(-1);
+		}
+	}
 }
 
 
@@ -313,7 +320,7 @@ static void main_loop( encoder_funcs_t* encoder )
 
 		// Time to change file?
 		if (file_start != this_hour) {
-			char* filepath;
+			char* filepath = NULL;
 			if (file_layout[0] == 'h' || file_layout[0] == 'H') {
 				filepath = time_to_filepath_hierarchy( this_hour, encoder->file_suffix );
 			} else if (file_layout[0] == 'f' || file_layout[0] == 'F') {
