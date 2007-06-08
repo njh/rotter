@@ -8,3 +8,5 @@ In order of priority:
  - Make hourly file change more accurate by having a second ring buffer
 
  - Support Ogg Vorbis?
+   https://trac.xiph.org/browser/trunk/vorbis/examples/encoder_example.c
+
