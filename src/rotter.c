@@ -383,7 +383,7 @@ static void main_loop( encoder_funcs_t* encoder )
 		int result = encoder->write();
 		if (result == 0) {
 			// Sleep for 1/4 of the ringbuffer duration
-			rotter_debug("Failed to write some audio, sleeping for %f sec.", rb_duration/4);
+			rotter_debug("Sleeping for %f sec.", rb_duration/4);
 			usleep( (rb_duration/4) * 1000000 );
 		} else if (result < 0) {
 			rotter_fatal("Shutting down, due to encoding error.");
