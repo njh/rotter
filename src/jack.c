@@ -59,7 +59,7 @@ int callback_jack(jack_nframes_t nframes, void *arg)
         char *buf  = (char*)jack_port_get_buffer(inport[c], nframes);
         size_t len = jack_ringbuffer_write(ringbuffer[c], buf, to_write);
         if (len < to_write) {
-            rotter_fatal("Failed to write to ring ruffer.");
+            rotter_fatal("Failed to write to ring buffer.");
             return 1;
          }
 	}
