@@ -1,0 +1,12 @@
+Rotter TODO List
+================
+
+In order of priority:
+ 
+ - Use mutex and conditions, like in the Jack capture client example
+ 
+ - Make hourly file change more accurate by having a second ring buffer
+
+ - Support Ogg Vorbis?
+   https://trac.xiph.org/browser/trunk/vorbis/examples/encoder_example.c
+
