@@ -133,14 +133,16 @@ static void write_id3v1()
 	id3.tag[2] = 'G';
 	
 	// Title
-	snprintf( id3.title, sizeof(id3.title), "Recorded %4.4d-%2.2d-%2.2d %2.2d:%2.2d",
+	snprintf( id3.title, sizeof(id3.title)-1, "Recorded %4.4d-%2.2d-%2.2d %2.2d:%2.2d",
 				tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, tm.tm_min );
 
 	// Artist - hostname
 	hostname = gethostname_fqdn();
-	strncpy( id3.artist, hostname, sizeof(id3.artist) );
-	free(hostname);
-
+	if (hostname) {
+    strncpy( id3.artist, hostname, sizeof(id3.artist)-1 );
+    free(hostname);
+  }
+  
 	// Album - unused
 	
 	
@@ -149,7 +151,7 @@ static void write_id3v1()
 	memcpy( id3.year, year, 4 );
 
 	// Comment
-	snprintf( id3.comment, sizeof(id3.comment), "Created by %s v%s",
+	snprintf( id3.comment, sizeof(id3.comment)-1, "Created by %s v%s",
 					PACKAGE_NAME, PACKAGE_VERSION );
 	
 	// Deliberately invalid genre

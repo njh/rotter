@@ -1,12 +1,20 @@
-Versin 0.5 (2007-06-04)
------------------------
+Version 0.7 (2009-05-22)
+------------------------
+- Fixed bug in ID3 writing code (thanks to Aleksander Plotnikov for reporting)
 
+
+Version 0.6 (2008-10-05)
+------------------------
+- Minor textual changes
+
+
+Version 0.5 (2007-06-04)
+-----------------------
 - Made compiler flags less strict
 
 
 Version 0.4 (2007-06-01)
 ------------------------
-
 - Added -std=c99 to CFLAGS
 - Fixed incorect month in ID3 writing code
 - Now gracefully exits when there is a fatal error while encoding
@@ -16,14 +24,12 @@ Version 0.4 (2007-06-01)
 
 Version 0.3 (2007-05-31)
 ------------------------
-
 - Added 'combo' file layout (thanks to Drew Roberts)
 - Added support for choice of archive file name
 
 
 Version 0.2 (2007-03-22)
 ------------------------
-
 - Added libsndfile support
 - Moved Jack functions from rotter.c to jack.c
 - Now displays the available audio output formats
@@ -32,6 +38,5 @@ Version 0.2 (2007-03-22)
 
 Version 0.1 (2006-06-21)
 ------------------------
-
 - Initial Release
 

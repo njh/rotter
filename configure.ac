@@ -5,7 +5,7 @@ AC_PREREQ(2.57)
 
 dnl ############# Initialization
 
-AC_INIT([rotter], [0.5], [njh@ecs.soton.ac.uk])
+AC_INIT([rotter], [0.7], [njh@ecs.soton.ac.uk])
 
 AC_CONFIG_SRCDIR([src/rotter.c])
 AC_CANONICAL_SYSTEM
