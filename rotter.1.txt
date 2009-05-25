@@ -104,7 +104,7 @@ Written by Nicholas J Humfrey
 
 RESOURCES
 ---------
-Web site: http://www.ecs.soton.ac.uk/~njh/rotter/[]
+Web site: http://www.aelius.com/njh/rotter/[]
 
 
 COPYING
