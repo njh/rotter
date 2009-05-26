@@ -136,7 +136,7 @@ int close_mpegaudio_file();
 int open_mpegaudio_file( const char* filepath );
 
 // In deletefiles.c
-void delete_files( const char* dir, int hours );
+int delete_files( const char* dir, int hours );
 
 
 #endif

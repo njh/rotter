@@ -1,3 +1,9 @@
+Version 0.8 (2009-05-25)
+------------------------
+- Fixed defunct child process bug
+- Updated contact addresses
+
+
 Version 0.7 (2009-05-22)
 ------------------------
 - Fixed bug in ID3 writing code (thanks to Aleksander Plotnikov for reporting)

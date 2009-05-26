@@ -128,11 +128,11 @@ static void delete_files_in_dir( const char* dirpath, dev_t device, time_t times
 
 
 // Delete files older than 'hours'
-void delete_files( const char* dirpath, int hours )
+int delete_files( const char* dirpath, int hours )
 {
 	int old_niceness, new_niceness = 15;
 	time_t now = time(NULL);
-	pid_t child_pid;
+	pid_t child_pid = 0;
 	dev_t device = get_file_device( dirpath );
 
 
@@ -144,10 +144,10 @@ void delete_files( const char* dirpath, int hours )
 	if (child_pid>0) {
 		// Parent is here
 		rotter_debug( "Forked new proccess to delete files (pid=%d).", child_pid );
-		return;
+		return child_pid;
 	} else if (child_pid<0) {
 		rotter_error( "Warning: fork failed: %s", strerror(errno) );
-		return;
+		return 0;
 	}
 	
 	// Make this process nicer

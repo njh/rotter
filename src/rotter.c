@@ -36,6 +36,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include "config.h"
 #include "rotter.h"
@@ -46,16 +47,17 @@
 
 
 // ------- Globals -------
-int quiet = 0;							// Only display error messages
-int verbose = 0;						// Increase number of logging messages
-char* file_layout = DEFAULT_FILE_LAYOUT;// File layout: Flat files or folder hierarchy ?
-char* archive_name = NULL;				// Archive file name
-int running = 1;						// True while still running
+int quiet = 0;					// Only display error messages
+int verbose = 0;				// Increase number of logging messages
+char* file_layout = DEFAULT_FILE_LAYOUT;	// File layout: Flat files or folder hierarchy ?
+char* archive_name = NULL;			// Archive file name
+int running = 1;				// True while still running
 int channels = DEFAULT_CHANNELS;		// Number of input channels
 float rb_duration = DEFAULT_RB_LEN;		// Duration of ring buffer
 char *root_directory = NULL;			// Root directory of archives
-int delete_hours = DEFAULT_DELETE_HOURS;// Delete files after this many hours
-time_t file_start = 0;					// Start time of the open file
+int delete_hours = DEFAULT_DELETE_HOURS;	// Delete files after this many hours
+pid_t delete_child_pid = 0;			// PID of process deleting old files
+time_t file_start = 0;				// Start time of the open file
 
 
 
@@ -374,10 +376,28 @@ static void main_loop( encoder_funcs_t* encoder )
 			
 
 			// Delete files older delete_hours
-			if (delete_hours>0)
-				delete_files( root_directory, delete_hours );
+			if (delete_hours>0) {
+				if (delete_child_pid) {
+					rotter_error( "Not deleting files: the last deletion process has not finished." );
+				} else {
+					delete_child_pid = delete_files( root_directory, delete_hours );
+				}
+			}
 		}
 		
+		// Has a child process finished?
+		if (delete_child_pid) {
+			int status = 0;
+			pid_t pid = waitpid( delete_child_pid, &status, WNOHANG );
+			if (pid) {
+				delete_child_pid = 0;
+				if (status) {
+					rotter_error( "File deletion child-process exited with status %d", status );
+				} else {
+					rotter_debug( "File deletion child-process has finished." );
+				}
+			}
+		}
 
 		// Write some audio to disk
 		int result = encoder->write();
