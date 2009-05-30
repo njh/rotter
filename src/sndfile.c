@@ -3,7 +3,7 @@
 	sndfile.c
 	
 	rotter: Recording of Transmission / Audio Logger
-	Copyright (C) 2007  Nicholas J. Humfrey
+	Copyright (C) 2007-2009  Nicholas J. Humfrey
 	
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -224,7 +224,7 @@ encoder_funcs_t* init_sndfile( const char* fmt_str, int channels, int bitrate )
 	if ( funcs==NULL ) {
 		rotter_error( "Failed to allocate memery for encoder callback functions structure." );
 		return NULL;
-    }
+	}
 	
 	
 	// Fill in the encoder callback functions

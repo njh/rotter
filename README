@@ -59,6 +59,7 @@ Supported audio output formats:
    caf           CAF (Apple 16 bit PCM)
    caf32         CAF (Apple 32 bit float)
    flac          FLAC 16 bit
+   vorbis        Ogg Vorbis
    wav           WAV (Microsoft 16 bit PCM)
    wav32         WAV (Microsoft 32 bit float)
 

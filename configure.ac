@@ -62,7 +62,7 @@ AC_CHECK_LIB(mp3lame, lame_get_version,
 
 
 # Check for libsndfile
-PKG_CHECK_MODULES(SNDFILE, sndfile >= 1.0.14,
+PKG_CHECK_MODULES(SNDFILE, sndfile >= 1.0.18,
 	[ HAVE_SNDFILE="Yes"
 	  AC_DEFINE(HAVE_SNDFILE, 1, [SndFile library is available])
 	], 
@@ -108,7 +108,7 @@ echo "Building $PACKAGE_NAME version $PACKAGE_VERSION."
 echo ""
 echo "         TwoLAME codec (MP2): $HAVE_TWOLAME "
 echo "            LAME codec (MP3): $HAVE_LAME "
-echo "   libsndfile (WAV/AIFF etc): $HAVE_SNDFILE "
+echo "                  libsndfile: $HAVE_SNDFILE "
 echo ""
 echo "Next type 'make' to begin compilation."
 

@@ -1,6 +1,7 @@
 Version 0.8 (2009-05-25)
 ------------------------
 - Fixed defunct child process bug
+- Added support for Ogg Vorbis (using libsndfile)
 - Updated contact addresses
 
 

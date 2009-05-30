@@ -3,7 +3,7 @@
 	rotter.c
 	
 	rotter: Recording of Transmission / Audio Logger
-	Copyright (C) 2006  Nicholas J. Humfrey
+	Copyright (C) 2006-2009  Nicholas J. Humfrey
 	
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -80,6 +80,7 @@ output_format_map_t format_map [] =
 	{ "caf",	"CAF (Apple 16 bit PCM)",			SF_FORMAT_CAF |  SF_FORMAT_PCM_16, init_sndfile },
 	{ "caf32",	"CAF (Apple 32 bit float)",			SF_FORMAT_CAF |  SF_FORMAT_FLOAT, init_sndfile },
 	{ "flac",	"FLAC 16 bit",						SF_FORMAT_FLAC |  SF_FORMAT_PCM_16, init_sndfile },
+	{ "vorbis",	"Ogg Vorbis",						SF_FORMAT_OGG |  SF_FORMAT_VORBIS, init_sndfile },
 	{ "wav",	"WAV (Microsoft 16 bit PCM)",		SF_FORMAT_WAV | SF_FORMAT_PCM_16, init_sndfile },
 	{ "wav32",	"WAV (Microsoft 32 bit float)",		SF_FORMAT_WAV | SF_FORMAT_FLOAT, init_sndfile },
 #endif	

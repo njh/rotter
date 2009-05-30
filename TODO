@@ -7,6 +7,8 @@ In order of priority:
  
  - Make hourly file change more accurate by having a second ring buffer
 
- - Support Ogg Vorbis?
-   https://trac.xiph.org/browser/trunk/vorbis/examples/encoder_example.c
+ - Support SFC_SET_VBR_ENCODING_QUALITY for setting VBR encoding quality
 
+ - Support SFC_SET_BROADCAST_INFO to set Broadcast Extention chunk for WAV files
+
+ - Support other libsndfile options (e.g. clipping) ?
