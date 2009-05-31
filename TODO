@@ -3,9 +3,9 @@ Rotter TODO List
 
 In order of priority:
  
- - Make sure that libsndfile based formats append to file after rotter crashes
+ - Make sure that libsndfile based formats append to file (eg if rotter crashes)
  
- - Use mutex and conditions, like in the Jack capture client example
+ - Change 'Starting new archive file' message if archive already exists
  
  - Make hourly file change more accurate by having a second ring buffer
 
@@ -14,3 +14,5 @@ In order of priority:
  - Support SFC_SET_BROADCAST_INFO to set Broadcast Extention chunk for WAV files
 
  - Support other libsndfile options (e.g. clipping) ?
+ 
+ - Use mutex and conditions, like in the Jack capture client example?
