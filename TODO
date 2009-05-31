@@ -3,6 +3,8 @@ Rotter TODO List
 
 In order of priority:
  
+ - Make sure that libsndfile based formats append to file after rotter crashes
+ 
  - Use mutex and conditions, like in the Jack capture client example
  
  - Make hourly file change more accurate by having a second ring buffer
