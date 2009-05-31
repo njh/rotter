@@ -399,6 +399,12 @@ static void main_loop( encoder_funcs_t* encoder )
 				}
 			}
 		}
+		
+		// Has there been a ringbuffer overflow?
+		if (ringbuffer_overflow) {
+			rotter_error( "Ring buffer overflowed while writing audio." );
+			ringbuffer_overflow = 0;
+		}
 
 		// Write some audio to disk
 		int result = encoder->write();

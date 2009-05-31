@@ -3,7 +3,7 @@
 	lame.c
 	
 	rotter: Recording of Transmission / Audio Logger
-	Copyright (C) 2006  Nicholas J. Humfrey
+	Copyright (C) 2006-2009  Nicholas J. Humfrey
 	
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -90,31 +90,32 @@ static int write_lame()
 	
 	}
 	
-	// Is the enough in the ring buffer?
-	if (jack_ringbuffer_read_space( ringbuffer[0] ) < f32_desired) {
-		// Try again later
-		return 0;
+	// Is there enough in the ring buffers?
+	for (c=0; c<channels; c++) {
+		if (jack_ringbuffer_read_space( ringbuffer[c] ) < f32_desired) {
+			// Try again later
+			return 0;
+		}
 	}
 	
 
 	// Take audio out of the ring buffer
-    for (c=0; c<channels; c++)
-    {    
- 		// Ensure the temporary buffer is big enough
+	for (c=0; c<channels; c++) {
+		// Ensure the temporary buffer is big enough
 		f32_buffer = (jack_default_audio_sample_t*)realloc(f32_buffer, f32_desired );
 		if (!f32_buffer) rotter_fatal( "realloc on f32_buffer failed" );
 
 		// Copy frames from ring buffer to temporary buffer
-        bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)f32_buffer, f32_desired);
+		bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)f32_buffer, f32_desired);
 		if (bytes_read != f32_desired) {
-			rotter_fatal( "Failed to read desired number of bytes from ringbuffer." );
+			rotter_fatal( "Failed to read desired number of bytes from ringbuffer %d.", c );
 		}
 		
 		// Convert to 16-bit integer samples
 		i16_buffer[c] = (short int*)realloc(i16_buffer[c], i16_desired );
 		if (!i16_buffer[2]) rotter_fatal( "realloc on i16_buffer failed" );
 		float32_to_short( f32_buffer, i16_buffer[c], samples );
-    }
+	}
 
 	
 	

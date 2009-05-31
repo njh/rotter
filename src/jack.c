@@ -3,7 +3,7 @@
 	jack.c
 	
 	rotter: Recording of Transmission / Audio Logger
-	Copyright (C) 2006  Nicholas J. Humfrey
+	Copyright (C) 2006-2009  Nicholas J. Humfrey
 	
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -39,6 +39,7 @@
 // ------- Globals -------
 jack_port_t *inport[2] = {NULL, NULL};
 jack_ringbuffer_t *ringbuffer[2] = {NULL, NULL};
+int ringbuffer_overflow = 0;
 jack_client_t *client = NULL;
 static jack_default_audio_sample_t *tmp_buffer = NULL;
 
@@ -51,8 +52,18 @@ static jack_default_audio_sample_t *tmp_buffer = NULL;
 static
 int callback_jack(jack_nframes_t nframes, void *arg)
 {
-	size_t to_write = sizeof (jack_default_audio_sample_t) * nframes;
+	size_t to_write = sizeof(jack_default_audio_sample_t) * nframes;
 	unsigned int c;
+
+	for (c=0; c < channels; c++)
+	{	
+		size_t space = jack_ringbuffer_write_space(ringbuffer[c]);
+		if (space < to_write) {
+      // Glitch in audio is preferable to a fatal error or ring buffer corruption
+			ringbuffer_overflow = 1;
+		  return 0;
+		}
+	}
 	
 	for (c=0; c < channels; c++)
 	{	
@@ -63,7 +74,6 @@ int callback_jack(jack_nframes_t nframes, void *arg)
 			return 1;
 		}
 	}
-
 
 	// Success
 	return 0;
@@ -77,7 +87,7 @@ void shutdown_callback_jack(void *arg)
 	rotter_error("Rotter quitting because jackd is shutting down." );
 	
 	// Signal the main thead to stop
-	running=0;
+	running = 0;
 }
 
 

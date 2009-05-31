@@ -3,7 +3,7 @@
 	twolame.c
 	
 	rotter: Recording of Transmission / Audio Logger
-	Copyright (C) 2006  Nicholas J. Humfrey
+	Copyright (C) 2006-2009  Nicholas J. Humfrey
 	
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -68,26 +68,27 @@ static int write_twolame()
 	
 	}
 	
-	// Is the enough in the ring buffer?
-	if (jack_ringbuffer_read_space( ringbuffer[0] ) < desired) {
-		// Try again later
-		return 0;
-	}
 	
+	// Is there enough in the ring buffers?
+	for (c=0; c<channels; c++) {
+		if (jack_ringbuffer_read_space( ringbuffer[c] ) < desired) {
+			// Try again later
+			return 0;
+		}
+	}
 
 	// Take audio out of the ring buffer
-    for (c=0; c<channels; c++)
-    {    
+	for (c=0; c<channels; c++) {
 		// Ensure the temporary buffer is big enough
 		pcm_buffer[c] = (jack_default_audio_sample_t*)realloc(pcm_buffer[c], desired );
 		if (!pcm_buffer[c]) rotter_fatal( "realloc on tmp_buffer failed" );
 
 		// Copy frames from ring buffer to temporary buffer
-        bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)pcm_buffer[c], desired);
+		bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)pcm_buffer[c], desired);
 		if (bytes_read != desired) {
-			rotter_fatal( "Failed to read desired number of bytes from ringbuffer." );
+			rotter_fatal( "Failed to read desired number of bytes from ringbuffer %d.", c );
 		}
-    }
+	}
 
 
 	// Encode it

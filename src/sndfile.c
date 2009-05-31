@@ -69,28 +69,30 @@ static int write_sndfile()
 	
 	}
 	
-	// Is the enough in the ring buffer?
-	if (jack_ringbuffer_read_space( ringbuffer[0] ) < desired) {
-		// Try again later
-		return 0;
+	// Is there enough in the ring buffers?
+	for (c=0; c<channels; c++) {
+		if (jack_ringbuffer_read_space( ringbuffer[c] ) < desired) {
+			// Try again later
+			return 0;
+		}
 	}
 	
 	// Get the audio out of the ring buffer
-    for (c=0; c<channels; c++)
-    {    
+	for (c=0; c<channels; c++) {
 		// Ensure the temporary buffer is big enough
 		tmp_buffer[c] = (jack_default_audio_sample_t*)realloc(tmp_buffer[c], desired );
 		if (!tmp_buffer[c]) rotter_fatal( "realloc on tmp_buffer failed" );
 
 		// Copy frames from ring buffer to temporary buffer
-        bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)tmp_buffer[c], desired);
+		bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)tmp_buffer[c], desired);
 		if (bytes_read != desired) {
-			rotter_fatal( "Failed to read desired number of bytes from ringbuffer." );
+			rotter_fatal( "Failed to read desired number of bytes from ringbuffer %d.", c );
 		}
-    }
+	}
 
 	// Interleave the audio into yet another buffer
 	interleaved_buffer = (jack_default_audio_sample_t*)realloc(interleaved_buffer, desired*channels );
+	if (!interleaved_buffer) rotter_fatal( "realloc on interleaved_buffer failed" );
 	for (c=0; c<channels; c++)
 	{    
 		for(i=0;i<read_size;i++) {

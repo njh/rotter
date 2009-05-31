@@ -3,7 +3,7 @@
 	rotter.h
 	
 	rotter: Recording of Transmission / Audio Logger
-	Copyright (C) 2006  Nicholas J. Humfrey
+	Copyright (C) 2006-2009  Nicholas J. Humfrey
 	
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -77,11 +77,11 @@ typedef struct encoder_funcs_s
 	void* output_file;
 
 	int (*open)(const char * filepath);	// Result: 0=success
-	int (*close)();						// Result: 0=success
+	int (*close)();				// Result: 0=success
 		
-	int (*write)();					// Result: negative=error
-									//		   0= try again later
-									//         positive=bytes written
+	int (*write)();				// Result: negative=error
+						//		   0= try again later
+						//         positive=bytes written
 	void (*deinit)();
 
 } encoder_funcs_t;
@@ -103,9 +103,10 @@ extern jack_ringbuffer_t *ringbuffer[2];
 extern jack_client_t *client;
 extern time_t file_start;
 extern output_format_map_t format_map[];
-extern int running;				// True while still running
+extern int running;			// True while still running
 extern int channels;			// Number of input channels
 extern float rb_duration;		// Duration of ring buffer
+extern int ringbuffer_overflow;		// Flag to indigate that a ringbuffer overflowed
 
 
 
