@@ -51,17 +51,17 @@ static jack_default_audio_sample_t *tmp_buffer = NULL;
 static
 int callback_jack(jack_nframes_t nframes, void *arg)
 {
-    size_t to_write = sizeof (jack_default_audio_sample_t) * nframes;
+	size_t to_write = sizeof (jack_default_audio_sample_t) * nframes;
 	unsigned int c;
 	
 	for (c=0; c < channels; c++)
 	{	
-        char *buf  = (char*)jack_port_get_buffer(inport[c], nframes);
-        size_t len = jack_ringbuffer_write(ringbuffer[c], buf, to_write);
-        if (len < to_write) {
-            rotter_fatal("Failed to write to ring buffer.");
-            return 1;
-         }
+		char *buf  = (char*)jack_port_get_buffer(inport[c], nframes);
+		size_t len = jack_ringbuffer_write(ringbuffer[c], buf, to_write);
+		if (len < to_write) {
+			rotter_fatal("Failed to write to ring buffer.");
+			return 1;
+		}
 	}
 
 
