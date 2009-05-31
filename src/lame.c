@@ -207,17 +207,17 @@ encoder_funcs_t* init_lame( const char* format, int channels, int bitrate )
 	if ( 0 > lame_set_num_channels( lame_opts, channels ) ) {
 		rotter_error("lame error: failed to set number of channels.");
 		return NULL;
-    }
+	}
 
 	if ( 0 > lame_set_in_samplerate( lame_opts, jack_get_sample_rate( client ) )) {
 		rotter_error("lame error: failed to set input samplerate.");
 		return NULL;
-    }
+	}
 
 	if ( 0 > lame_set_out_samplerate( lame_opts, jack_get_sample_rate( client ) )) {
 		rotter_error("lame error: failed to set output samplerate.");
 		return NULL;
-    }
+	}
 
 	if ( 0 > lame_set_brate( lame_opts, bitrate) ) {
 		rotter_error("lame error: failed to set bitrate.");
@@ -227,7 +227,7 @@ encoder_funcs_t* init_lame( const char* format, int channels, int bitrate )
 	if ( 0 > lame_init_params( lame_opts ) ) {
 		rotter_error("lame error: failed to initialize parameters.");
 		return NULL;
-    }
+	}
     
 
 	rotter_info( "Encoding using liblame version %s.", get_lame_version() );
@@ -244,14 +244,14 @@ encoder_funcs_t* init_lame( const char* format, int channels, int bitrate )
 	if ( mpeg_buffer==NULL ) {
 		rotter_error( "Failed to allocate memery for encoded audio." );
 		return NULL;
-    }
+	}
 
 	// Allocate memory for callback functions
 	funcs = calloc( 1, sizeof(encoder_funcs_t) );
 	if ( funcs==NULL ) {
 		rotter_error( "Failed to allocate memery for encoder callback functions structure." );
 		return NULL;
-    }
+	}
 	
 
 	funcs->file_suffix = "mp3";
