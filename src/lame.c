@@ -113,7 +113,7 @@ static int write_lame()
 		
 		// Convert to 16-bit integer samples
 		i16_buffer[c] = (short int*)realloc(i16_buffer[c], i16_desired );
-		if (!i16_buffer[2]) rotter_fatal( "realloc on i16_buffer failed" );
+		if (!i16_buffer[c]) rotter_fatal( "realloc on i16_buffer failed" );
 		float32_to_short( f32_buffer, i16_buffer[c], samples );
 	}
 
