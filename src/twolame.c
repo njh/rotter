@@ -44,7 +44,6 @@
 
 // ------ Globals ---------
 static twolame_options *twolame_opts = NULL;
-static jack_default_audio_sample_t *pcm_buffer[2]= {NULL,NULL};
 static unsigned char *mpeg_buffer=NULL;
 
 
@@ -53,83 +52,38 @@ static unsigned char *mpeg_buffer=NULL;
 /*
   Encode and write some audio from the ring buffer to disk
 */
-static int write_twolame()
+static int write_twolame(void *fh, size_t sample_count, jack_default_audio_sample_t *buffer[])
 {
-  jack_nframes_t samples = TWOLAME_SAMPLES_PER_FRAME;
-  size_t desired = samples * sizeof( jack_default_audio_sample_t );
-  int bytes_read=0, bytes_encoded=0, bytes_written=0;
-  int c=0;
-  
-  // Check that the output file is open
-  if (mpegaudio_file==NULL) {
-    rotter_error( "Warning: output file isn't open, while trying to encode.");
-    // Try again later
-    return 0;
-  }
-  
-  
-  // Is there enough in the ring buffers?
-  for (c=0; c<channels; c++) {
-    if (jack_ringbuffer_read_space( ringbuffer[c] ) < desired) {
-      // Try again later
-      return 0;
-    }
-  }
-
-  // Take audio out of the ring buffer
-  for (c=0; c<channels; c++) {
-    // Ensure the temporary buffer is big enough
-    pcm_buffer[c] = (jack_default_audio_sample_t*)realloc(pcm_buffer[c], desired );
-    if (!pcm_buffer[c]) rotter_fatal( "realloc on tmp_buffer failed" );
-
-    // Copy frames from ring buffer to temporary buffer
-    bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)pcm_buffer[c], desired);
-    if (bytes_read != desired) {
-      rotter_fatal( "Failed to read desired number of bytes from ringbuffer %d.", c );
-    }
-  }
-
+  int bytes_encoded=0, bytes_written=0;
+  FILE *file = (FILE*)fh;
 
   // Encode it
-  bytes_encoded = twolame_encode_buffer_float32( twolame_opts, 
-            pcm_buffer[0], pcm_buffer[1],
-            samples, mpeg_buffer, WRITE_BUFFER_SIZE );
+  bytes_encoded = twolame_encode_buffer_float32(
+            twolame_opts, buffer[0], buffer[1],
+            sample_count, mpeg_buffer, WRITE_BUFFER_SIZE
+  );
   if (bytes_encoded<=0) {
-    if (bytes_encoded<0)
-      rotter_error( "Warning: failed to encode audio: %d", bytes_encoded);
-    return bytes_encoded;
+    rotter_error( "Warning: failed to encode audio: %d", bytes_encoded);
+    return -1;
   }
-  
-  
+
   // Write it to disk
-  bytes_written = fwrite( mpeg_buffer, 1, bytes_encoded, mpegaudio_file);
+  bytes_written = fwrite(mpeg_buffer, 1, bytes_encoded, file);
   if (bytes_written != bytes_encoded) {
     rotter_error( "Warning: failed to write encoded audio to disk.");
     return -1;
   }
-  
 
   // Success
-  return bytes_written;
-
+  return 0;
 }
-
-
 
 
 static void deinit_twolame()
 {
-  int c;
   rotter_debug("Shutting down TwoLAME encoder.");
   twolame_close( &twolame_opts );
 
-  for( c=0; c<2; c++) {
-    if (pcm_buffer[c]) {
-      free(pcm_buffer[c]);
-      pcm_buffer[c]=NULL;
-    }
-  }
-  
   if (mpeg_buffer) {
     free(mpeg_buffer);
     mpeg_buffer=NULL;

@@ -27,6 +27,18 @@
 #include <jack/jack.h>
 #include <jack/ringbuffer.h>
 
+#ifdef HAVE_SNDFILE
+#include <sndfile.h>
+#endif
+
+#ifdef HAVE_LAME
+#include <lame/lame.h>
+#endif
+
+#ifdef HAVE_TWOLAME
+#include <twolame.h>
+#endif
+
 
 #ifndef _ROTTER_H_
 #define _ROTTER_H_
@@ -45,6 +57,17 @@
 #define DEFAULT_DELETE_HOURS  (0)
 
 
+#ifndef LAME_SAMPLES_PER_FRAME
+#define LAME_SAMPLES_PER_FRAME (1152)
+#endif
+
+#ifndef TWOLAME_SAMPLES_PER_FRAME
+#define TWOLAME_SAMPLES_PER_FRAME (1152)
+#endif
+
+#ifndef SNDFILE_SAMPLES_PER_FRAME
+#define SNDFILE_SAMPLES_PER_FRAME (512)
+#endif
 
 
 // ------- Logging ---------
@@ -71,17 +94,25 @@ typedef enum {
 
 
 // ------- Structures -------
+typedef struct rotter_ringbuffer_s
+{
+    time_t hour_start;
+    void* file_handle;
+    jack_ringbuffer_t *buffer[2];
+    int close_file;                  // Flag to indigate that file should be closed
+    int overflow;                    // Flag to indigate that a ringbuffer overflowed
+} rotter_ringbuffer_t;
+
 typedef struct encoder_funcs_s
 {
-  const char* file_suffix;    // Suffix for archive files
-  void* output_file;
+  const char* file_suffix;            // Suffix for archive files
 
-  int (*open)(const char * filepath); // Result: 0 = success
-  int (*close)();                     // Result: 0 = success
+  void* (*open)(const char * filepath); // Result: pointer to file handle
+  int (*close)(void *fh);               // Result: 0=success
     
-  int (*write)();       // Result: negative = error
-                        //                0 = try again later
-                        //         positive = bytes written
+  int (*write)(void *fh, size_t sample_count, jack_default_audio_sample_t *buffer[]);
+                                      // Result: 0=success
+
   void (*deinit)();
 
 } encoder_funcs_t;
@@ -91,24 +122,26 @@ typedef struct
 {
   const char  *name ;
   const char  *desc ;
-  int     param ;
-  encoder_funcs_t* (*initfunc)( const char* format, int channels, int bitrate );
-} output_format_map_t ;
+  size_t      samples_per_frame;
+  int         param ;
+
+  encoder_funcs_t* (*initfunc)(const char* format, int channels, int bitrate);
+} output_format_map_t;
 
 
 
 
 // ------- Globals ---------
 extern jack_port_t *inport[2];
-extern jack_ringbuffer_t *ringbuffer[2];
 extern jack_client_t *client;
-extern time_t file_start;
 extern output_format_map_t format_map[];
 extern int running;     // True while still running
 extern int channels;      // Number of input channels
 extern float rb_duration;   // Duration of ring buffer
-extern int ringbuffer_overflow;   // Flag to indigate that a ringbuffer overflowed
 
+
+extern rotter_ringbuffer_t *ringbuffers[2];
+extern rotter_ringbuffer_t *active_ringbuffer;
 
 
 
@@ -133,9 +166,8 @@ encoder_funcs_t* init_lame( const char* format, int channels, int bitrate );
 encoder_funcs_t* init_sndfile( const char* format, int channels, int bitrate );
 
 // In mpegaudiofile.c
-FILE* mpegaudio_file;
-int close_mpegaudio_file();
-int open_mpegaudio_file( const char* filepath );
+int close_mpegaudio_file(void* fh);
+void* open_mpegaudio_file(const char* filepath);
 
 // In deletefiles.c
 int delete_files( const char* dir, int hours );

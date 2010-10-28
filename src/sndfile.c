@@ -44,89 +44,46 @@
 
 
 // ------ Globals ---------
-static SNDFILE *sndfile = NULL;
-static SF_INFO sfinfo;
 static jack_default_audio_sample_t *interleaved_buffer = NULL;
-static jack_default_audio_sample_t *tmp_buffer[2] = {NULL,NULL};
-static const jack_nframes_t read_size = 256;  // Write 256 samples to disk at a time 
+static SF_INFO sfinfo;
 
 
 
 /*
   Write some audio from the ring buffer to disk
 */
-static int write_sndfile()
+static int write_sndfile(void *fh, size_t sample_count, jack_default_audio_sample_t *buffer[])
 {
-  size_t desired = read_size * sizeof( jack_default_audio_sample_t );
+  SNDFILE *sndfile = (SNDFILE *)fh;
   sf_count_t frames_written = 0;
-  int i,c, bytes_read=0;
-  
-  // Check that the output file is open
-  if (sndfile==NULL) {
-    rotter_error( "Warning: output file isn't open, while trying to encode.");
-    // Try again later
-    return 0;
-  }
-  
-  // Is there enough in the ring buffers?
-  for (c=0; c<channels; c++) {
-    if (jack_ringbuffer_read_space( ringbuffer[c] ) < desired) {
-      // Try again later
-      return 0;
-    }
-  }
-  
-  // Get the audio out of the ring buffer
-  for (c=0; c<channels; c++) {
-    // Ensure the temporary buffer is big enough
-    tmp_buffer[c] = (jack_default_audio_sample_t*)realloc(tmp_buffer[c], desired );
-    if (!tmp_buffer[c]) rotter_fatal( "realloc on tmp_buffer failed" );
+  int i,c;
 
-    // Copy frames from ring buffer to temporary buffer
-    bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)tmp_buffer[c], desired);
-    if (bytes_read != desired) {
-      rotter_fatal( "Failed to read desired number of bytes from ringbuffer %d.", c );
-    }
-  }
-
-  // Interleave the audio into yet another buffer
-  interleaved_buffer = (jack_default_audio_sample_t*)realloc(interleaved_buffer, desired*channels );
+  // Interleave the audio into another buffer
+  interleaved_buffer = (jack_default_audio_sample_t*)realloc(interleaved_buffer, sample_count*channels );
   if (!interleaved_buffer) rotter_fatal( "realloc on interleaved_buffer failed" );
   for (c=0; c<channels; c++)
   {    
-    for(i=0;i<read_size;i++) {
-      interleaved_buffer[(i*channels)+c] = tmp_buffer[c][i];
+    for(i=0;i<sample_count;i++) {
+      interleaved_buffer[(i*channels)+c] = buffer[c][i];
     }
   }
     
   // Write it to disk
-  frames_written = sf_writef_float(sndfile, interleaved_buffer, read_size) ;
-  if (frames_written != read_size) {
+  frames_written = sf_writef_float(sndfile, interleaved_buffer, sample_count);
+  if (frames_written != sample_count) {
     rotter_error( "Warning: failed to write audio to disk: %s", sf_strerror( sndfile ));
     return -1;
   }
-  
 
   // Success
-  return frames_written;
+  return 0;
 }
-
-
 
 
 static void deinit_sndfile()
 {
-  int c;
-  
   rotter_debug("Shutting down sndfile encoder.");
 
-  for(c=0;c<2;c++) {
-    if (tmp_buffer[c]) {
-      free(tmp_buffer[c]);
-      tmp_buffer[c]=NULL;
-    }
-  }
-  
   if (interleaved_buffer) {
     free(interleaved_buffer);
     interleaved_buffer=NULL;
@@ -134,9 +91,9 @@ static void deinit_sndfile()
 }
 
 
-
-static int close_sndfile()
+static int close_sndfile(void *fh)
 {
+  SNDFILE *sndfile = (SNDFILE *)fh;
   if (sndfile==NULL) return -1;
   
   rotter_debug("Closing libsndfile output file.");
@@ -146,46 +103,39 @@ static int close_sndfile()
     return -1;
   }
   
-  // File is now closed
-  sndfile=NULL;
-
   // Success
   return 0;
 }
 
 
-static int open_sndfile( const char* filepath )
+static void* open_sndfile(const char* filepath)
 {
+  SNDFILE *sndfile = NULL;
 
   rotter_debug("Opening libsndfile output file: %s", filepath);
-  if (sndfile) {
-    rotter_error("Warning: already open while opening output file."); 
-    close_sndfile();
-  }
-
   sndfile = sf_open( filepath, SFM_WRITE, &sfinfo );
   if (sndfile==NULL) {
     rotter_error( "Failed to open output file: %s", sf_strerror(NULL) );
-    return -1;
+    return NULL;
   }
 
-  // Success
-  return 0;
+  return (void*)sndfile;
 }
-
-
 
 
 encoder_funcs_t* init_sndfile( const char* fmt_str, int channels, int bitrate )
 {
   encoder_funcs_t* funcs = NULL;
+
   char sndlibver[128];
   SF_FORMAT_INFO format_info;
   SF_FORMAT_INFO subformat_info;
   int i;
 
-  // Zero the SF_INFO structure
-  bzero( &sfinfo, sizeof( sfinfo ) );
+  // Zero the SF_INFO structures
+  bzero( &sfinfo, sizeof( SF_INFO ) );
+  bzero( &format_info, sizeof( SF_FORMAT_INFO ) );
+  bzero( &subformat_info, sizeof( SF_FORMAT_INFO ) );
 
   // Lookup the format parameters
   for(i=0; format_map[i].name; i++) {
@@ -206,9 +156,16 @@ encoder_funcs_t* init_sndfile( const char* fmt_str, int channels, int bitrate )
 
   // Lookup inforamtion about the format and subtype
   format_info.format = sfinfo.format & SF_FORMAT_TYPEMASK;
-  sf_command (NULL, SFC_GET_FORMAT_INFO, &format_info, sizeof(format_info));
+  if (sf_command(NULL, SFC_GET_FORMAT_INFO, &format_info, sizeof(format_info))) {
+    rotter_error( "Failed to get format information for: 0x%4.4x", format_info.format);
+    return NULL;
+  }
+
   subformat_info.format = sfinfo.format & SF_FORMAT_SUBMASK;
-  sf_command (NULL, SFC_GET_FORMAT_INFO, &subformat_info, sizeof(subformat_info));
+  if (sf_command (NULL, SFC_GET_FORMAT_INFO, &subformat_info, sizeof(subformat_info))) {
+    rotter_error( "Failed to get sub-format information for: 0x%4.4x", subformat_info.format);
+    return NULL;
+  }
 
 
   // Fill in the rest of the SF_INFO data structure
@@ -218,7 +175,12 @@ encoder_funcs_t* init_sndfile( const char* fmt_str, int channels, int bitrate )
   // Display info about input/output
   rotter_debug( "  Input: %d Hz, %d channels", sfinfo.samplerate, sfinfo.channels );
   rotter_debug( "  Output: %s, %s.", format_info.name, subformat_info.name );
-  
+
+  // Check that the format is valid
+  if (!sf_format_check(&sfinfo)) {
+    rotter_error( "Output format is not valid." );
+    return NULL;
+  }
 
   // Allocate memory for callback functions
   funcs = calloc( 1, sizeof(encoder_funcs_t) );
@@ -234,7 +196,6 @@ encoder_funcs_t* init_sndfile( const char* fmt_str, int channels, int bitrate )
   funcs->close = close_sndfile;
   funcs->write = write_sndfile;
   funcs->deinit = deinit_sndfile;
-
 
   return funcs;
 }

@@ -41,9 +41,6 @@
 #include "config.h"
 #include "rotter.h"
 
-#ifdef HAVE_SNDFILE
-#include <sndfile.h>
-#endif
 
 
 // ------- Globals -------
@@ -57,32 +54,45 @@ float rb_duration = DEFAULT_RB_LEN;   // Duration of ring buffer
 char *root_directory = NULL;      // Root directory of archives
 int delete_hours = DEFAULT_DELETE_HOURS;  // Delete files after this many hours
 pid_t delete_child_pid = 0;     // PID of process deleting old files
-time_t file_start = 0;        // Start time of the open file
+encoder_funcs_t* encoder = NULL;
 
-
+size_t samples_per_frame = 0;  // FIXME: should this be a global?
+jack_default_audio_sample_t *tmp_buffer[2];
+rotter_ringbuffer_t *ringbuffers[2] = {NULL,NULL};
+rotter_ringbuffer_t *active_ringbuffer = NULL;
 
 output_format_map_t format_map [] =
 {
 
 #ifdef HAVE_LAME
-  { "mp3",  "MPEG Audio Layer 3",       0, init_lame },
+  { "mp3",  "MPEG Audio Layer 3", LAME_SAMPLES_PER_FRAME, 0, init_lame },
 #endif
 
 #ifdef HAVE_TWOLAME
-  { "mp2",  "MPEG Audio Layer 2",       0, init_twolame },
+  { "mp2",  "MPEG Audio Layer 2", TWOLAME_SAMPLES_PER_FRAME, 0, init_twolame },
 #endif
 
 #ifdef HAVE_SNDFILE
-  { "aiff", "AIFF (Apple/SGI 16 bit PCM)",    SF_FORMAT_AIFF | SF_FORMAT_PCM_16, init_sndfile },
-  { "aiff32", "AIFF (Apple/SGI 32 bit float)",  SF_FORMAT_AIFF | SF_FORMAT_FLOAT, init_sndfile },
-  { "au",   "AU (Sun/Next 16 bit PCM)",     SF_FORMAT_AU | SF_FORMAT_PCM_16, init_sndfile },
-  { "au32", "AU (Sun/Next 32 bit float)",   SF_FORMAT_AU | SF_FORMAT_FLOAT, init_sndfile },
-  { "caf",  "CAF (Apple 16 bit PCM)",     SF_FORMAT_CAF |  SF_FORMAT_PCM_16, init_sndfile },
-  { "caf32",  "CAF (Apple 32 bit float)",     SF_FORMAT_CAF |  SF_FORMAT_FLOAT, init_sndfile },
-  { "flac", "FLAC 16 bit",            SF_FORMAT_FLAC |  SF_FORMAT_PCM_16, init_sndfile },
-  { "vorbis", "Ogg Vorbis",           SF_FORMAT_OGG |  SF_FORMAT_VORBIS, init_sndfile },
-  { "wav",  "WAV (Microsoft 16 bit PCM)",   SF_FORMAT_WAV | SF_FORMAT_PCM_16, init_sndfile },
-  { "wav32",  "WAV (Microsoft 32 bit float)",   SF_FORMAT_WAV | SF_FORMAT_FLOAT, init_sndfile },
+  { "aiff", "AIFF (Apple/SGI 16 bit PCM)",
+    SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_AIFF | SF_FORMAT_PCM_16, init_sndfile },
+  { "aiff32", "AIFF (Apple/SGI 32 bit float)",
+    SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_AIFF | SF_FORMAT_FLOAT, init_sndfile },
+  { "au",   "AU (Sun/Next 16 bit PCM)",
+    SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_AU   | SF_FORMAT_PCM_16, init_sndfile },
+  { "au32", "AU (Sun/Next 32 bit float)",
+    SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_AU   | SF_FORMAT_FLOAT, init_sndfile },
+  { "caf",  "CAF (Apple 16 bit PCM)",
+    SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_CAF  | SF_FORMAT_PCM_16, init_sndfile },
+  { "caf32",  "CAF (Apple 32 bit float)",
+    SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_CAF  | SF_FORMAT_FLOAT, init_sndfile },
+  { "flac", "FLAC 16 bit",
+    SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_FLAC | SF_FORMAT_PCM_16, init_sndfile },
+  { "vorbis", "Ogg Vorbis",
+    SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_OGG  | SF_FORMAT_VORBIS, init_sndfile },
+  { "wav",  "WAV (Microsoft 16 bit PCM)",
+    SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_WAV  | SF_FORMAT_PCM_16, init_sndfile },
+  { "wav32",  "WAV (Microsoft 32 bit float)",
+    SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_WAV  | SF_FORMAT_FLOAT, init_sndfile },
 #endif  
   
   // End of list
@@ -158,21 +168,6 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... )
 
 
 
-// Returns unix timestamp for the start of this hour
-static time_t start_of_hour()
-{
-  struct tm tm;
-  time_t now = time(NULL);
-  
-  // Break down the time
-  localtime_r( &now, &tm );
-
-  // Set minutes and seconds to 0
-  tm.tm_min = 0;
-  tm.tm_sec = 0;
-  
-  return mktime( &tm );
-}
 
 
 static int directory_exists(const char * filepath)
@@ -341,41 +336,117 @@ static char * time_to_filepath_dailydir( time_t clock, const char* suffix )
   return filepath;
 }
 
-
-static void main_loop( encoder_funcs_t* encoder )
+static size_t read_from_ringbuffer(rotter_ringbuffer_t *ringbuffer, size_t desired_frames)
 {
+  size_t desired_bytes = desired_frames * sizeof(jack_default_audio_sample_t);
+  int c, bytes_read=0;
+
+  // Is there enough in the ring buffers?
+  for (c=0; c<channels; c++) {
+    if (jack_ringbuffer_read_space( ringbuffer->buffer[c] ) < desired_bytes) {
+      // Try again later
+      return 0;
+    }
+  }
   
-  while( running ) {
-    time_t this_hour = start_of_hour();
-    
+  // Get the audio out of the ring buffer
+  for (c=0; c<channels; c++) {
+    // FIXME: check size is enough before trying to realloc
 
-    // Time to change file?
-    if (file_start != this_hour) {
-      char* filepath = NULL;
-      if (file_layout[0] == 'h' || file_layout[0] == 'H') {
-        filepath = time_to_filepath_hierarchy( this_hour, encoder->file_suffix );
-      } else if (file_layout[0] == 'f' || file_layout[0] == 'F') {
-        filepath = time_to_filepath_flat( this_hour, encoder->file_suffix );
-      } else if (file_layout[0] == 'c' || file_layout[0] == 'C') {
-        filepath = time_to_filepath_combo( this_hour, encoder->file_suffix );
-      } else if (file_layout[0] == 'd' || file_layout[0] == 'D') {
-        filepath = time_to_filepath_dailydir( this_hour, encoder->file_suffix );
-      } else {
-        rotter_fatal("Unknown file layout: %s", file_layout);
-      }
-      
-      rotter_info( "Starting new archive file: %s", filepath );
-      
-      // Close the old file
-      encoder->close();
-      
-      // Open the new file
-      if (encoder->open( filepath )) break;
-      
-      file_start = this_hour;
-      free(filepath);
-      
+    // Ensure the temporary buffer is big enough
+    tmp_buffer[c] = (jack_default_audio_sample_t*)realloc(tmp_buffer[c], desired_bytes);
+    if (!tmp_buffer[c])
+      rotter_fatal( "realloc on tmp_buffer failed" );
 
+    // Copy frames from ring buffer to temporary buffer
+    bytes_read = jack_ringbuffer_read( ringbuffer->buffer[c], (char*)tmp_buffer[c], desired_bytes);
+    if (bytes_read != desired_bytes) {
+      rotter_fatal( "Failed to read desired number of bytes from ringbuffer channel %d.", c);
+    }
+  }
+
+  return bytes_read / sizeof(jack_default_audio_sample_t);
+}
+
+
+
+// FIXME: think of better function name
+static int open_file(rotter_ringbuffer_t *ringbuffer)
+{
+    char* filepath = NULL;
+    if (file_layout[0] == 'h' || file_layout[0] == 'H') {
+      filepath = time_to_filepath_hierarchy( ringbuffer->hour_start, encoder->file_suffix );
+    } else if (file_layout[0] == 'f' || file_layout[0] == 'F') {
+      filepath = time_to_filepath_flat( ringbuffer->hour_start, encoder->file_suffix );
+    } else if (file_layout[0] == 'c' || file_layout[0] == 'C') {
+      filepath = time_to_filepath_combo( ringbuffer->hour_start, encoder->file_suffix );
+    } else if (file_layout[0] == 'd' || file_layout[0] == 'D') {
+      filepath = time_to_filepath_dailydir( ringbuffer->hour_start, encoder->file_suffix );
+    } else {
+      rotter_fatal("Unknown file layout: %s", file_layout);
+    }
+
+    // Open the new file
+    rotter_info( "Opening new archive file: %s", filepath );
+    ringbuffer->file_handle = encoder->open(filepath);
+    if (ringbuffer->file_handle == NULL) {
+      // FIXME: don't keep trying to open same file after an error?
+      return 1;
+    }
+
+    free(filepath);
+
+    return 0;
+}
+
+
+// FIXME: think of better function name
+static void process_audio()
+{
+  int total_samples = 0;
+  int b;
+
+  for(b=0; b<2; b++) {
+    rotter_ringbuffer_t *ringbuffer = ringbuffers[b];
+    int samples = 0;
+
+    // Has there been a ringbuffer overflow?
+    if (ringbuffer->overflow) {
+      rotter_error( "Ringbuffer %c overflowed while writing audio.", b==0 ? 'A':'B');
+      ringbuffer->overflow = 0;
+    }
+
+    // Read some audio from the buffer
+    samples = read_from_ringbuffer( ringbuffer, samples_per_frame );
+    if (samples < 1) {
+      continue;
+    } else {
+      total_samples += samples;
+    }
+
+    // Open a new file?
+    if (ringbuffer->file_handle == NULL) {
+      rotter_debug("Going to open new file for ringbuffer %c.", b==0 ? 'A':'B');
+      open_file(ringbuffer);
+    }
+
+    // Write some audio to disk
+    int result = encoder->write(ringbuffer->file_handle, samples, tmp_buffer);
+    if (result) {
+      rotter_fatal("Shutting down, due to encoding error.");
+      break;
+    }
+
+    // Close the old file
+    if (ringbuffer->close_file) {
+      encoder->close(ringbuffer->file_handle);
+      // FIXME: check for error closing file
+      ringbuffer->close_file = 0;
+      ringbuffer->file_handle = NULL;
+    }
+
+
+/*
       // Delete files older delete_hours
       if (delete_hours>0) {
         if (delete_child_pid) {
@@ -399,26 +470,74 @@ static void main_loop( encoder_funcs_t* encoder )
         }
       }
     }
-    
-    // Has there been a ringbuffer overflow?
-    if (ringbuffer_overflow) {
-      rotter_error( "Ring buffer overflowed while writing audio." );
-      ringbuffer_overflow = 0;
-    }
+*/
 
-    // Write some audio to disk
-    int result = encoder->write();
-    if (result == 0) {
-      // Sleep for 1/4 of the ringbuffer duration
-      rotter_debug("Sleeping for %f sec.", rb_duration/4);
-      usleep( (rb_duration/4) * 1000000 );
-    } else if (result < 0) {
-      rotter_fatal("Shutting down, due to encoding error.");
-      break;
-    }
     
   }
 
+  if (total_samples == 0) {
+    // FIXME: caculate this once at the start
+    float sleep_time = ((float)samples_per_frame / jack_get_sample_rate( client ));
+    usleep( sleep_time * 1000000 );
+  }
+
+}
+
+static int init_ringbuffers()
+{
+  size_t ringbuffer_size = 0;
+  int b,c;
+
+  ringbuffer_size = jack_get_sample_rate( client ) * rb_duration * sizeof(float);
+  rotter_debug("Size of the ring buffers is %2.2f seconds (%d bytes).", rb_duration, (int)ringbuffer_size );
+
+  for(b=0; b<2; b++) {
+    ringbuffers[b] = malloc(sizeof(rotter_ringbuffer_t));
+    if (!ringbuffers[b]) {
+      rotter_fatal("Cannot allocate memory for ringbuffer structure %d.", b);
+    }
+
+    ringbuffers[b]->hour_start = 0;
+    ringbuffers[b]->file_handle = NULL;
+    ringbuffers[b]->overflow = 0;
+    ringbuffers[b]->close_file = 0;
+    ringbuffers[b]->buffer[0] = NULL;
+    ringbuffers[b]->buffer[1] = NULL;
+
+    for(c=0; c<channels; c++) {
+      ringbuffers[b]->buffer[c] = jack_ringbuffer_create( ringbuffer_size );
+      if (!ringbuffers[b]->buffer[c]) {
+        rotter_fatal("Cannot create ringbuffer buffer %d,%d.", b,c);
+      }
+    }
+  }
+
+  return 0;
+}
+
+static int deinit_ringbuffers()
+{
+  int b,c;
+
+  for(b=0; b<2; b++) {
+    if (ringbuffers[b]) {
+      for(c=0;c<2;c++) {
+        if (ringbuffers[b]->buffer[c]) {
+          jack_ringbuffer_free(ringbuffers[b]->buffer[c]);
+        }
+      }
+
+      if (ringbuffers[b]->file_handle) {
+        encoder->close(ringbuffers[b]->file_handle);
+        // FIXME: check for error closing file
+        ringbuffers[b]->file_handle = NULL;
+      }
+
+      free(ringbuffers[b]);
+    }
+  }
+
+  return 0;
 }
 
 
@@ -442,6 +561,8 @@ static void usage()
   printf("%s version %s\n\n", PACKAGE_NAME, PACKAGE_VERSION);
   printf("Usage: %s [options] <root_directory>\n", PACKAGE_NAME);
   printf("   -a            Automatically connect JACK ports\n");
+  printf("   -l <port>     Connect the left input to this port\n");
+  printf("   -r <port>     Connect the right input to this port\n");
   printf("   -f <format>   Format of recording (see list below)\n");
   printf("   -b <bitrate>  Bitrate of recording (bitstream formats only)\n");
   printf("   -c <channels> Number of channels\n");
@@ -483,7 +604,6 @@ int main(int argc, char *argv[])
   char *connect_right = NULL;
   const char *format = format_map[0].name;
   int bitrate = DEFAULT_BITRATE;
-  encoder_funcs_t* encoder = NULL;
   int i,opt;
 
   // Make STDOUT unbuffered
@@ -544,6 +664,8 @@ int main(int argc, char *argv[])
   // Initialise JACK
   init_jack( client_name, jack_opt );
 
+  // Create ring buffers
+  init_ringbuffers();
   
   // Initialise encoder
   for(i=0; format_map[i].name; i++) {
@@ -558,6 +680,9 @@ int main(int argc, char *argv[])
         encoder = format_map[i].initfunc( format, channels, bitrate );
       }
       
+      // FIXME:
+      samples_per_frame = format_map[i].samples_per_frame;
+
       // Found encoder
       break;
     }
@@ -576,7 +701,8 @@ int main(int argc, char *argv[])
   }
 
   // Activate JACK
-  if (jack_activate(client)) rotter_fatal("Cannot activate JACK client.");
+  if (jack_activate(client))
+    rotter_fatal("Cannot activate JACK client.");
 
   // Setup signal handlers
   signal(SIGTERM, termination_handler);
@@ -590,20 +716,21 @@ int main(int argc, char *argv[])
   if (connect_right && channels == 2) connect_jack_port( connect_right, inport[1] );
 
 
-  
-  main_loop( encoder );
-  
-  
-  // Close the output file
-  encoder->close();
+  while( running ) {
+    process_audio(encoder);
+  }
+
+  // FIXME: free tmp_buffer
+
+  deinit_ringbuffers();
 
   // Shut down encoder
-  encoder->deinit();
+  if (encoder)
+    encoder->deinit();
 
   // Clean up JACK
   deinit_jack();
-  
-  
+
   return 0;
 }
 

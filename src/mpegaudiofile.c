@@ -68,6 +68,9 @@ typedef struct id3v1_s
 } id3v1_t;
 
 
+// FIXME: work out where/how to set this
+time_t file_start = 0;
+
 
 static char* gethostname_fqdn()
 {
@@ -106,21 +109,21 @@ static char* gethostname_fqdn()
 }
 
 
-
 // Write an ID3v1 tag to a file handle
-static void write_id3v1()
+static void write_id3v1(FILE* file)
 {
   char *hostname;
   char year[5];
   struct tm tm;
   id3v1_t id3;
   
-  if (mpegaudio_file==NULL) return;
+  if (file==NULL) return;
   
   // Zero the ID3 data structure
   bzero( &id3, sizeof( id3v1_t )); 
 
   // Get a breakdown of the time recording started at
+  // FIXME: work out how/where to set file_start
   localtime_r( &file_start, &tm );
 
   
@@ -155,52 +158,43 @@ static void write_id3v1()
   id3.genre = 255;
 
   // Now write it to file
-  if (fwrite( &id3, sizeof(id3v1_t), 1, mpegaudio_file) != 1) {
+  if (fwrite( &id3, sizeof(id3v1_t), 1, file) != 1) {
     rotter_error( "Warning: failed to write ID3v1 tag." );
   }
 }
 
 
-
-
-int close_mpegaudio_file()
+int close_mpegaudio_file(void* fh)
 {
-  if (mpegaudio_file==NULL) return -1;
+  FILE *file = (FILE*)fh;
+
+  if (file==NULL) return -1;
   
   // Write ID3v1 tags
-  write_id3v1( );
-
+  write_id3v1(file);
 
   rotter_debug("Closing MPEG Audio output file.");
 
-  if (fclose(mpegaudio_file)) {
+  if (fclose(file)) {
     rotter_error( "Failed to close output file: %s", strerror(errno) );
     return -1;
   }
   
-  // File is now closed
-  mpegaudio_file=NULL;
-
   // Success
   return 0;
 }
 
 
-int open_mpegaudio_file( const char* filepath )
+void* open_mpegaudio_file( const char* filepath )
 {
+  FILE* file;
 
   rotter_debug("Opening MPEG Audio output file: %s", filepath);
-  if (mpegaudio_file) {
-    rotter_error("Warning: already open while opening output file."); 
-    close_mpegaudio_file();
-  }
-
-  mpegaudio_file = fopen( filepath, "ab" );
-  if (mpegaudio_file==NULL) {
+  file = fopen( filepath, "ab" );
+  if (file==NULL) {
     rotter_error( "Failed to open output file: %s", strerror(errno) );
-    return -1;
+    return 0;
   }
 
-  // Success
-  return 0;
+  return file;
 }

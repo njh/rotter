@@ -38,11 +38,25 @@
 
 // ------- Globals -------
 jack_port_t *inport[2] = {NULL, NULL};
-jack_ringbuffer_t *ringbuffer[2] = {NULL, NULL};
-int ringbuffer_overflow = 0;
 jack_client_t *client = NULL;
-static jack_default_audio_sample_t *tmp_buffer = NULL;
 
+
+
+// Returns unix timestamp for the start of this hour
+static time_t start_of_hour()
+{
+  struct tm tm;
+  time_t now = time(NULL);
+
+  // Break down the time
+  localtime_r( &now, &tm );
+
+  // Set minutes and seconds to 0
+  tm.tm_min = 0;
+  tm.tm_sec = 0;
+
+  return mktime( &tm );
+}
 
 
 /* Callback called by JACK when audio is available
@@ -53,14 +67,28 @@ static
 int callback_jack(jack_nframes_t nframes, void *arg)
 {
   size_t to_write = sizeof(jack_default_audio_sample_t) * nframes;
+  time_t this_hour = start_of_hour();
   unsigned int c;
+
+  // Time to swap ring buffers?
+  if (active_ringbuffer == NULL || active_ringbuffer->hour_start != this_hour) {
+    if (active_ringbuffer) {
+      active_ringbuffer->close_file = 1;
+    }
+    if (active_ringbuffer == ringbuffers[0]) {
+      active_ringbuffer = ringbuffers[1];
+    } else {
+      active_ringbuffer = ringbuffers[0];
+    }
+    active_ringbuffer->hour_start = this_hour;
+  }
 
   for (c=0; c < channels; c++)
   { 
-    size_t space = jack_ringbuffer_write_space(ringbuffer[c]);
+    size_t space = jack_ringbuffer_write_space(active_ringbuffer->buffer[c]);
     if (space < to_write) {
       // Glitch in audio is preferable to a fatal error or ring buffer corruption
-      ringbuffer_overflow = 1;
+      active_ringbuffer->overflow = 1;
       return 0;
     }
   }
@@ -68,7 +96,7 @@ int callback_jack(jack_nframes_t nframes, void *arg)
   for (c=0; c < channels; c++)
   { 
     char *buf  = (char*)jack_port_get_buffer(inport[c], nframes);
-    size_t len = jack_ringbuffer_write(ringbuffer[c], buf, to_write);
+    size_t len = jack_ringbuffer_write(active_ringbuffer->buffer[c], buf, to_write);
     if (len < to_write) {
       rotter_fatal("Failed to write to ring buffer.");
       return 1;
@@ -136,8 +164,6 @@ void autoconnect_jack_ports( jack_client_t* client )
 void init_jack( const char* client_name, jack_options_t jack_opt ) 
 {
   jack_status_t status;
-  size_t ringbuffer_size = 0;
-  int i;
 
   // Register with Jack
   if ((client = jack_client_open(client_name, jack_opt, &status)) == 0) {
@@ -161,15 +187,6 @@ void init_jack( const char* client_name, jack_options_t jack_opt )
     }
   }
   
-  // Create ring buffers
-  ringbuffer_size = jack_get_sample_rate( client ) * rb_duration * sizeof(float);
-  rotter_debug("Size of the ring buffers is %2.2f seconds (%d bytes).", rb_duration, (int)ringbuffer_size );
-  for(i=0; i<channels; i++) {
-    if (!(ringbuffer[i] = jack_ringbuffer_create( ringbuffer_size ))) {
-      rotter_fatal("Cannot create ringbuffer %d.", i);
-    }
-  }
-  
   // Register shutdown callback
   jack_on_shutdown(client, shutdown_callback_jack, NULL );
 
@@ -182,24 +199,11 @@ void init_jack( const char* client_name, jack_options_t jack_opt )
 // Shut down jack related stuff
 void deinit_jack()
 {
-  int c;
+  // FIXME: jack_deactivate
   
   // Leave the Jack graph
   jack_client_close(client);
   
-  // Free up the temporary buffer
-  if (tmp_buffer) {
-    free( tmp_buffer );
-    tmp_buffer = NULL;
-  }
-  
-  // Free up the ring buffers
-  for(c=0;c<2;c++) {
-    if (ringbuffer[c]) {
-      jack_ringbuffer_free( ringbuffer[c] );
-      ringbuffer[c] = NULL;
-    }
-  }
 }
 
 

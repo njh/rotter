@@ -43,7 +43,6 @@
 
 // ------ Globals ---------
 static lame_global_flags *lame_opts = NULL;
-static jack_default_audio_sample_t *f32_buffer=NULL;
 static short int *i16_buffer[2]={NULL,NULL};
 static unsigned char *mpeg_buffer=NULL;
 
@@ -52,7 +51,7 @@ static unsigned char *mpeg_buffer=NULL;
 
 
 static void float32_to_short(
-  const float in[],
+  const jack_default_audio_sample_t in[],
   short out[],
   int num_samples)
 {
@@ -74,74 +73,38 @@ static void float32_to_short(
 /*
   Encode and write some audio from the ring buffer to disk
 */
-static int write_lame()
+static int write_lame(void *fh, size_t sample_count, jack_default_audio_sample_t *buffer[])
 {
-  jack_nframes_t samples = SAMPLES_PER_FRAME;
-  size_t f32_desired = samples * sizeof( jack_default_audio_sample_t );
-  size_t i16_desired = samples * sizeof( short int );
-  int bytes_read=0, bytes_encoded=0, bytes_written=0;
+  FILE* file = (FILE*)fh;
+  size_t i16_desired = sample_count * sizeof( short int );
+  int bytes_encoded=0, bytes_written=0;
   int c=0;
-  
-  // Check that the output file is open
-  if (mpegaudio_file==NULL) {
-    rotter_error( "Warning: output file isn't open, while trying to encode.");
-    // Try again later
-    return 0;
-  
-  }
-  
-  // Is there enough in the ring buffers?
-  for (c=0; c<channels; c++) {
-    if (jack_ringbuffer_read_space( ringbuffer[c] ) < f32_desired) {
-      // Try again later
-      return 0;
-    }
-  }
-  
 
-  // Take audio out of the ring buffer
+  // Convert to 16-bit integer samples
   for (c=0; c<channels; c++) {
-    // Ensure the temporary buffer is big enough
-    f32_buffer = (jack_default_audio_sample_t*)realloc(f32_buffer, f32_desired );
-    if (!f32_buffer) rotter_fatal( "realloc on f32_buffer failed" );
-
-    // Copy frames from ring buffer to temporary buffer
-    bytes_read = jack_ringbuffer_read( ringbuffer[c], (char*)f32_buffer, f32_desired);
-    if (bytes_read != f32_desired) {
-      rotter_fatal( "Failed to read desired number of bytes from ringbuffer %d.", c );
-    }
-    
-    // Convert to 16-bit integer samples
     i16_buffer[c] = (short int*)realloc(i16_buffer[c], i16_desired );
     if (!i16_buffer[c]) rotter_fatal( "realloc on i16_buffer failed" );
-    float32_to_short( f32_buffer, i16_buffer[c], samples );
+    float32_to_short( buffer[c], i16_buffer[c], sample_count );
   }
-
-  
-  
 
   // Encode it
   bytes_encoded = lame_encode_buffer( lame_opts, 
             i16_buffer[0], i16_buffer[1],
-            samples, mpeg_buffer, WRITE_BUFFER_SIZE );
+            sample_count, mpeg_buffer, WRITE_BUFFER_SIZE );
   if (bytes_encoded<=0) {
-    if (bytes_encoded<0)
-      rotter_error( "Warning: failed to encode audio: %d", bytes_encoded);
-    return bytes_encoded;
+    rotter_error( "Warning: failed to encode audio: %d", bytes_encoded);
+    return -1;
   }
-  
-  
+
   // Write it to disk
-  bytes_written = fwrite( mpeg_buffer, 1, bytes_encoded, mpegaudio_file);
+  bytes_written = fwrite( mpeg_buffer, 1, bytes_encoded, file);
   if (bytes_written != bytes_encoded) {
     rotter_error( "Warning: failed to write encoded audio to disk: %s", strerror(errno) );
     return -1;
   }
-  
 
   // Success
-  return bytes_written;
-
+  return 0;
 }
 
 
@@ -154,11 +117,6 @@ static void deinit_lame()
   rotter_debug("Shutting down LAME encoder.");
   lame_close( lame_opts );
 
-  if (f32_buffer) {
-    free(f32_buffer);
-    f32_buffer=NULL;
-  }
-  
   for( c=0; c<2; c++) {
     if (i16_buffer[c]) {
       free(i16_buffer[c]);
