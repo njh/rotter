@@ -1,20 +1,20 @@
 /*
 
   lame.c
-  
+
   rotter: Recording of Transmission / Audio Logger
   Copyright (C) 2006-2009  Nicholas J. Humfrey
-  
+
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
   as published by the Free Software Foundation; either version 2
   of the License, or (at your option) any later version.
-  
+
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
-  
+
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
@@ -56,7 +56,7 @@ static void float32_to_short(
   int num_samples)
 {
   int n;
-  
+
   for(n=0; n<num_samples; n++) {
     int tmp = lrintf(in[n] * 32768.0f);
     if (tmp > SHRT_MAX) {
@@ -88,7 +88,7 @@ static int write_lame(void *fh, size_t sample_count, jack_default_audio_sample_t
   }
 
   // Encode it
-  bytes_encoded = lame_encode_buffer( lame_opts, 
+  bytes_encoded = lame_encode_buffer( lame_opts,
             i16_buffer[0], i16_buffer[1],
             sample_count, mpeg_buffer, WRITE_BUFFER_SIZE );
   if (bytes_encoded<=0) {
@@ -113,7 +113,7 @@ static int write_lame(void *fh, size_t sample_count, jack_default_audio_sample_t
 static void deinit_lame()
 {
   int c;
-  
+
   rotter_debug("Shutting down LAME encoder.");
   lame_close( lame_opts );
 
@@ -123,16 +123,16 @@ static void deinit_lame()
       i16_buffer[c]=NULL;
     }
   }
-  
+
   if (mpeg_buffer) {
     free(mpeg_buffer);
     mpeg_buffer=NULL;
   }
-  
+
 }
 
 
-static const char* lame_get_version_name( lame_global_flags *glopts ) 
+static const char* lame_get_version_name( lame_global_flags *glopts )
 {
   int version = lame_get_version( glopts );
   if (version==0) { return "MPEG-2"; }
@@ -142,7 +142,7 @@ static const char* lame_get_version_name( lame_global_flags *glopts )
 
 }
 
-static const char* lame_get_mode_name( lame_global_flags *glopts ) 
+static const char* lame_get_mode_name( lame_global_flags *glopts )
 {
   int mode = lame_get_mode( glopts );
   if (mode==STEREO) { return "Stereo"; }
@@ -161,7 +161,7 @@ encoder_funcs_t* init_lame( const char* format, int channels, int bitrate )
     rotter_error("lame error: failed to initialise.");
     return NULL;
   }
-  
+
   if ( 0 > lame_set_num_channels( lame_opts, channels ) ) {
     rotter_error("lame error: failed to set number of channels.");
     return NULL;
@@ -186,7 +186,7 @@ encoder_funcs_t* init_lame( const char* format, int channels, int bitrate )
     rotter_error("lame error: failed to initialize parameters.");
     return NULL;
   }
-    
+
 
   rotter_info( "Encoding using liblame version %s.", get_lame_version() );
   rotter_debug( "  Input: %d Hz, %d channels",
@@ -210,7 +210,7 @@ encoder_funcs_t* init_lame( const char* format, int channels, int bitrate )
     rotter_error( "Failed to allocate memery for encoder callback functions structure." );
     return NULL;
   }
-  
+
 
   funcs->file_suffix = "mp3";
   funcs->open = open_mpegaudio_file;

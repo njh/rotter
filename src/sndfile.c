@@ -1,20 +1,20 @@
 /*
 
   sndfile.c
-  
+
   rotter: Recording of Transmission / Audio Logger
   Copyright (C) 2007-2009  Nicholas J. Humfrey
-  
+
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
   as published by the Free Software Foundation; either version 2
   of the License, or (at your option) any later version.
-  
+
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
-  
+
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
@@ -62,12 +62,12 @@ static int write_sndfile(void *fh, size_t sample_count, jack_default_audio_sampl
   interleaved_buffer = (jack_default_audio_sample_t*)realloc(interleaved_buffer, sample_count*channels );
   if (!interleaved_buffer) rotter_fatal( "realloc on interleaved_buffer failed" );
   for (c=0; c<channels; c++)
-  {    
+  {
     for(i=0;i<sample_count;i++) {
       interleaved_buffer[(i*channels)+c] = buffer[c][i];
     }
   }
-    
+
   // Write it to disk
   frames_written = sf_writef_float(sndfile, interleaved_buffer, sample_count);
   if (frames_written != sample_count) {
@@ -95,14 +95,14 @@ static int close_sndfile(void *fh)
 {
   SNDFILE *sndfile = (SNDFILE *)fh;
   if (sndfile==NULL) return -1;
-  
+
   rotter_debug("Closing libsndfile output file.");
 
   if (sf_close(sndfile)) {
     rotter_error( "Failed to close output file: %s", sf_strerror(sndfile) );
     return -1;
   }
-  
+
   // Success
   return 0;
 }
@@ -143,13 +143,13 @@ encoder_funcs_t* init_sndfile( const char* fmt_str, int channels, int bitrate )
       sfinfo.format = format_map[i].param;
     }
   }
-  
+
   // Check it found something
   if (sfinfo.format == 0x00) {
     rotter_error( "No libsndfile format flags defined for [%s]\n", fmt_str );
     return NULL;
   }
-  
+
   // Get the version of libsndfile
   sf_command(NULL, SFC_GET_LIB_VERSION, sndlibver, sizeof(sndlibver));
   rotter_debug( "Encoding using libsndfile version %s.", sndlibver );
@@ -188,8 +188,8 @@ encoder_funcs_t* init_sndfile( const char* fmt_str, int channels, int bitrate )
     rotter_error( "Failed to allocate memery for encoder callback functions structure." );
     return NULL;
   }
-  
-  
+
+
   // Fill in the encoder callback functions
   funcs->file_suffix = format_info.extension;
   funcs->open = open_sndfile;

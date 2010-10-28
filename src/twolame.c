@@ -1,20 +1,20 @@
 /*
 
   twolame.c
-  
+
   rotter: Recording of Transmission / Audio Logger
   Copyright (C) 2006-2009  Nicholas J. Humfrey
-  
+
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
   as published by the Free Software Foundation; either version 2
   of the License, or (at your option) any later version.
-  
+
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
-  
+
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
@@ -88,7 +88,7 @@ static void deinit_twolame()
     free(mpeg_buffer);
     mpeg_buffer=NULL;
   }
-  
+
 }
 
 
@@ -101,7 +101,7 @@ encoder_funcs_t* init_twolame( const char* format, int channels, int bitrate )
     rotter_error("TwoLAME error: failed to initialise.");
     return NULL;
   }
-  
+
   if ( 0 > twolame_set_num_channels( twolame_opts, channels ) ) {
     rotter_error("TwoLAME error: failed to set number of channels.");
     return NULL;
@@ -126,7 +126,7 @@ encoder_funcs_t* init_twolame( const char* format, int channels, int bitrate )
     rotter_error("TwoLAME error: failed to initialize parameters.");
     return NULL;
   }
-    
+
 
   rotter_debug( "Encoding using libtwolame version %s.", get_twolame_version() );
   rotter_debug( "  Input: %d Hz, %d channels",
@@ -150,7 +150,7 @@ encoder_funcs_t* init_twolame( const char* format, int channels, int bitrate )
     rotter_error( "Failed to allocate memery for encoder callback functions structure." );
     return NULL;
   }
-  
+
 
   funcs->file_suffix = "mp2";
   funcs->open = open_mpegaudio_file;

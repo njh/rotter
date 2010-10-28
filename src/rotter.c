@@ -1,20 +1,20 @@
 /*
 
   rotter.c
-  
+
   rotter: Recording of Transmission / Audio Logger
   Copyright (C) 2006-2009  Nicholas J. Humfrey
-  
+
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
   as published by the Free Software Foundation; either version 2
   of the License, or (at your option) any later version.
-  
+
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
-  
+
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
@@ -93,11 +93,11 @@ output_format_map_t format_map [] =
     SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_WAV  | SF_FORMAT_PCM_16, init_sndfile },
   { "wav32",  "WAV (Microsoft 32 bit float)",
     SNDFILE_SAMPLES_PER_FRAME, SF_FORMAT_WAV  | SF_FORMAT_FLOAT, init_sndfile },
-#endif  
-  
+#endif
+
   // End of list
   { NULL,   NULL,               0 },
-  
+
 } ; /* format_map */
 
 
@@ -111,9 +111,9 @@ termination_handler (int signum)
     case SIGTERM: rotter_info("Got termination signal."); break;
     case SIGINT:  rotter_info("Got interupt signal."); break;
   }
-  
+
   signal(signum, termination_handler);
-  
+
   // Signal the main thead to stop
   running = 0;
 }
@@ -125,8 +125,8 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... )
   time_t t=time(NULL);
   char time_str[32];
   va_list args;
-  
-  
+
+
   // Display the message level
   if (level == ROTTER_DEBUG ) {
     if (!verbose) return;
@@ -146,13 +146,13 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... )
   ctime_r( &t, time_str );
   time_str[strlen(time_str)-1]=0; // remove \n
   printf( "%s  ", time_str );
-  
+
   // Display the error message
   va_start( args, fmt );
   vprintf( fmt, args );
   printf( "\n" );
   va_end( args );
-  
+
   // If fatal then stop
   if (level == ROTTER_FATAL) {
     if (running) {
@@ -185,7 +185,7 @@ static int directory_exists(const char * filepath)
       return 0;
     }
   }
-  
+
   return 0;
 }
 
@@ -203,7 +203,7 @@ static int mkdir_p( const char* dir )
       // ENOENT (a parent directory doesn't exist)
       char* parent = strdup( dir );
       int i;
-      
+
       // Create parent directories recursively
       for(i=strlen(parent); i>0; i--) {
         if (parent[i]=='/') {
@@ -212,19 +212,19 @@ static int mkdir_p( const char* dir )
           break;
         }
       }
-      
+
       free(parent);
-      
+
       // Try again to create the directory
       if (result==0) {
         result = mkdir(dir, DEFAULT_DIR_MODE);
       }
-      
+
     } else {
       result = -1;
     }
   }
-  
+
   return result;
 }
 
@@ -233,9 +233,9 @@ static char * time_to_filepath_flat( time_t clock, const char* suffix )
 {
   struct tm tm;
   char* filepath = malloc( MAX_FILEPATH_LEN );
-  
+
   localtime_r( &clock, &tm );
-  
+
   if (archive_name) {
     // Create the full file path
     snprintf( filepath, MAX_FILEPATH_LEN, "%s/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
@@ -254,10 +254,10 @@ static char * time_to_filepath_hierarchy( time_t clock, const char* suffix )
 {
   struct tm tm;
   char* filepath = malloc( MAX_FILEPATH_LEN );
-  
-  
+
+
   localtime_r( &clock, &tm );
-  
+
   // Make sure the parent directories exists
   snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
         root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour );
@@ -284,10 +284,10 @@ static char * time_to_filepath_combo( time_t clock, const char* suffix )
 {
   struct tm tm;
   char* filepath = malloc( MAX_FILEPATH_LEN );
-  
-  
+
+
   localtime_r( &clock, &tm );
-  
+
   // Make sure the parent directories exists
   snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
         root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour );
@@ -312,10 +312,10 @@ static char * time_to_filepath_dailydir( time_t clock, const char* suffix )
 {
   struct tm tm;
   char* filepath = malloc( MAX_FILEPATH_LEN );
-  
-  
+
+
   localtime_r( &clock, &tm );
-  
+
   // Make sure the parent directories exists
   snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d",
         root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday );
@@ -348,7 +348,7 @@ static size_t read_from_ringbuffer(rotter_ringbuffer_t *ringbuffer, size_t desir
       return 0;
     }
   }
-  
+
   // Get the audio out of the ring buffer
   for (c=0; c<channels; c++) {
     // FIXME: check size is enough before trying to realloc
@@ -456,7 +456,7 @@ static void process_audio()
         }
       }
     }
-    
+
     // Has a child process finished?
     if (delete_child_pid) {
       int status = 0;
@@ -472,7 +472,7 @@ static void process_audio()
     }
 */
 
-    
+
   }
 
   if (total_samples == 0) {
@@ -544,11 +544,11 @@ static int deinit_ringbuffers()
 static char* str_tolower( char* str )
 {
   int i=0;
-  
+
   for(i=0; i< strlen( str ); i++) {
     str[i] = tolower( str[i] );
   }
-  
+
   return str;
 }
 
@@ -574,13 +574,13 @@ static void usage()
   printf("   -j            Don't automatically start jackd\n");
   printf("   -v            Enable verbose mode\n");
   printf("   -q            Enable quiet mode\n");
-  
+
   printf("\nSupported file layouts:\n");
   printf("   flat          /root_directory/YYYY-MM-DD-HH.suffix\n");
   printf("   hierarchy     /root_directory/YYYY/MM/DD/HH/archive.suffix\n");
   printf("   combo         /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix\n");
   printf("   dailydir      /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH.suffix\n");
-  
+
   // Display the available audio output formats
   printf("\nSupported audio output formats:\n");
   for(i=0; format_map[i].name; i++) {
@@ -589,8 +589,8 @@ static void usage()
     printf("\n");
   }
   printf("\n");
-  
-  
+
+
   exit(1);
 }
 
@@ -629,7 +629,7 @@ int main(int argc, char *argv[])
       default:  usage(); break;
     }
   }
-  
+
   // Validate parameters
   if (quiet && verbose) {
       rotter_error("Can't be quiet and verbose at the same time.");
@@ -652,7 +652,7 @@ int main(int argc, char *argv[])
     root_directory = argv[0];
     if (root_directory[strlen(root_directory)-1] == '/')
       root_directory[strlen(root_directory)-1] = 0;
-      
+
     if (directory_exists(root_directory)) {
       rotter_debug("Root directory: %s", root_directory);
     } else {
@@ -666,7 +666,7 @@ int main(int argc, char *argv[])
 
   // Create ring buffers
   init_ringbuffers();
-  
+
   // Initialise encoder
   for(i=0; format_map[i].name; i++) {
     if (strcmp( format_map[i].name, format ) == 0) {
@@ -679,7 +679,7 @@ int main(int argc, char *argv[])
       } else {
         encoder = format_map[i].initfunc( format, channels, bitrate );
       }
-      
+
       // FIXME:
       samples_per_frame = format_map[i].samples_per_frame;
 
@@ -687,12 +687,12 @@ int main(int argc, char *argv[])
       break;
     }
   }
-  
+
   // Failed to find match?
   if (encoder==NULL && format_map[i].name==NULL) {
     rotter_fatal("Failed to find format [%s], please check the supported format list.", format);
   }
-  
+
   // Other failure?
   if (encoder==NULL) {
     rotter_debug("Failed to initialise encoder.");
@@ -708,8 +708,8 @@ int main(int argc, char *argv[])
   signal(SIGTERM, termination_handler);
   signal(SIGINT, termination_handler);
   signal(SIGHUP, termination_handler);
-  
-  
+
+
   // Auto-connect our input ports ?
   if (autoconnect) autoconnect_jack_ports( client );
   if (connect_left) connect_jack_port( connect_left, inport[0] );

@@ -1,20 +1,20 @@
 /*
 
   mpegaudiofile.c
-  
+
   rotter: Recording of Transmission / Audio Logger
   Copyright (C) 2006-2009  Nicholas J. Humfrey
-  
+
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
   as published by the Free Software Foundation; either version 2
   of the License, or (at your option) any later version.
-  
+
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
-  
+
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
@@ -34,7 +34,7 @@
 #include "config.h"
 
 
-/* 
+/*
   I don't especially like ID3v1 but it is really simple.
   Informal specification: http://www.id3.org/id3v1.html
 */
@@ -77,12 +77,12 @@ static char* gethostname_fqdn()
   char hostname[ HOST_NAME_MAX ];
   char domainname[ DOMAIN_NAME_MAX ];
   struct hostent  *hp;
-  
+
   if (gethostname( hostname, HOST_NAME_MAX ) < 0) {
     // Failed
     return NULL;
   }
-  
+
   // If it contains a dot, then assume it is a FQDN
   if (strchr(hostname, '.') != NULL)
     return strdup( hostname );
@@ -116,22 +116,22 @@ static void write_id3v1(FILE* file)
   char year[5];
   struct tm tm;
   id3v1_t id3;
-  
+
   if (file==NULL) return;
-  
+
   // Zero the ID3 data structure
-  bzero( &id3, sizeof( id3v1_t )); 
+  bzero( &id3, sizeof( id3v1_t ));
 
   // Get a breakdown of the time recording started at
   // FIXME: work out how/where to set file_start
   localtime_r( &file_start, &tm );
 
-  
+
   // Header
   id3.tag[0] = 'T';
   id3.tag[1] = 'A';
   id3.tag[2] = 'G';
-  
+
   // Title
   snprintf( id3.title, sizeof(id3.title)-1, "Recorded %4.4d-%2.2d-%2.2d %2.2d:%2.2d",
         tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, tm.tm_min );
@@ -142,10 +142,10 @@ static void write_id3v1(FILE* file)
     strncpy( id3.artist, hostname, sizeof(id3.artist)-1 );
     free(hostname);
   }
-  
+
   // Album - unused
-  
-  
+
+
   // Year
   sprintf( year, "%4.4d" , tm.tm_year+1900);
   memcpy( id3.year, year, 4 );
@@ -153,7 +153,7 @@ static void write_id3v1(FILE* file)
   // Comment
   snprintf( id3.comment, sizeof(id3.comment)-1, "Created by %s v%s",
           PACKAGE_NAME, PACKAGE_VERSION );
-  
+
   // Deliberately invalid genre
   id3.genre = 255;
 
@@ -169,7 +169,7 @@ int close_mpegaudio_file(void* fh)
   FILE *file = (FILE*)fh;
 
   if (file==NULL) return -1;
-  
+
   // Write ID3v1 tags
   write_id3v1(file);
 
@@ -179,7 +179,7 @@ int close_mpegaudio_file(void* fh)
     rotter_error( "Failed to close output file: %s", strerror(errno) );
     return -1;
   }
-  
+
   // Success
   return 0;
 }
