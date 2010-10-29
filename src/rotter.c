@@ -709,7 +709,6 @@ int main(int argc, char *argv[])
   signal(SIGINT, termination_handler);
   signal(SIGHUP, termination_handler);
 
-
   // Auto-connect our input ports ?
   if (autoconnect) autoconnect_jack_ports( client );
   if (connect_left) connect_jack_port( connect_left, inport[0] );
@@ -720,16 +719,16 @@ int main(int argc, char *argv[])
     process_audio(encoder);
   }
 
-  // FIXME: free tmp_buffer
-
-  deinit_ringbuffers();
-
   // Shut down encoder
   if (encoder)
     encoder->deinit();
 
   // Clean up JACK
   deinit_jack();
+
+  // FIXME: free tmp_buffer
+
+  deinit_ringbuffers();
 
   return 0;
 }

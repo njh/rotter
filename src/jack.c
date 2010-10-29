@@ -199,11 +199,13 @@ void init_jack( const char* client_name, jack_options_t jack_opt )
 // Shut down jack related stuff
 void deinit_jack()
 {
-  // FIXME: jack_deactivate
+  rotter_debug("Stopping Jack client.");
 
-  // Leave the Jack graph
-  jack_client_close(client);
+  if (jack_deactivate(client)) {
+    rotter_error("Failed to de-activate Jack");
+  }
 
+  if (jack_client_close(client)) {
+    rotter_error("Failed to close Jack client");
+  }
 }
-
-
