@@ -115,12 +115,12 @@ void shutdown_callback_jack(void *arg)
   rotter_error("Rotter quitting because jackd is shutting down." );
 
   // Signal the main thead to stop
-  running = 0;
+  rotter_run_state = ROTTER_STATE_QUITING;
 }
 
 
 // Connect one Jack port to another
-void connect_jack_port( const char* out, jack_port_t *port )
+int connect_jack_port( const char* out, jack_port_t *port )
 {
   const char* in = jack_port_name( port );
   int err;
@@ -128,13 +128,17 @@ void connect_jack_port( const char* out, jack_port_t *port )
   rotter_info("Connecting '%s' to '%s'", out, in);
 
   if ((err = jack_connect(client, out, in)) != 0) {
-    rotter_fatal("connect_jack_port(): failed to jack_connect() ports: %d",err);
+    rotter_fatal("connect_jack_port(): failed to jack_connect() ports: %d", err);
+    return err;
   }
+
+  // Success
+  return 0;
 }
 
 
 // Crude way of automatically connecting up jack ports
-void autoconnect_jack_ports( jack_client_t* client )
+int autoconnect_jack_ports( jack_client_t* client )
 {
   const char **all_ports;
   unsigned int ch=0;
@@ -144,30 +148,35 @@ void autoconnect_jack_ports( jack_client_t* client )
   all_ports = jack_get_ports(client, NULL, NULL, JackPortIsOutput);
   if (!all_ports) {
     rotter_fatal("autoconnect_jack_ports(): jack_get_ports() returned NULL.");
+    return -1;
   }
 
   // Step through each port name
   for (i = 0; all_ports[i]; ++i) {
-
     // Connect the port
-    connect_jack_port( all_ports[i], inport[ch] );
+    if (connect_jack_port( all_ports[i], inport[ch] )) {
+      return -1;
+    }
 
     // Found enough ports ?
     if (++ch >= channels) break;
   }
 
   free( all_ports );
+
+  return 0;
 }
 
 
 // Initialise Jack related stuff
-void init_jack( const char* client_name, jack_options_t jack_opt )
+int init_jack( const char* client_name, jack_options_t jack_opt )
 {
   jack_status_t status;
 
   // Register with Jack
   if ((client = jack_client_open(client_name, jack_opt, &status)) == 0) {
     rotter_fatal("Failed to start jack client: 0x%x", status);
+    return -1;
   }
   rotter_info( "JACK client registered as '%s'.", jack_get_client_name( client ) );
 
@@ -176,14 +185,17 @@ void init_jack( const char* client_name, jack_options_t jack_opt )
   if (channels==1) {
     if (!(inport[0] = jack_port_register(client, "mono", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0))) {
       rotter_fatal("Cannot register mono input port.");
+      return -1;
     }
   } else {
     if (!(inport[0] = jack_port_register(client, "left", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0))) {
       rotter_fatal("Cannot register left input port.");
+      return -1;
     }
 
     if (!(inport[1] = jack_port_register(client, "right", JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0))) {
       rotter_fatal( "Cannot register left input port.");
+      return -1;
     }
   }
 
@@ -191,21 +203,30 @@ void init_jack( const char* client_name, jack_options_t jack_opt )
   jack_on_shutdown(client, shutdown_callback_jack, NULL );
 
   // Register callback
-  jack_set_process_callback(client, callback_jack, NULL);
+  if (jack_set_process_callback(client, callback_jack, NULL)) {
+    rotter_fatal( "Failed to set Jack process callback.");
+    return -1;
+  }
 
+  // Success
+  return 0;
 }
 
 
 // Shut down jack related stuff
-void deinit_jack()
+int deinit_jack()
 {
-  rotter_debug("Stopping Jack client.");
+  if (client) {
+    rotter_debug("Stopping Jack client.");
 
-  if (jack_deactivate(client)) {
-    rotter_error("Failed to de-activate Jack");
+    if (jack_deactivate(client)) {
+      rotter_error("Failed to de-activate Jack");
+    }
+
+    if (jack_client_close(client)) {
+      rotter_error("Failed to close Jack client");
+    }
   }
 
-  if (jack_client_close(client)) {
-    rotter_error("Failed to close Jack client");
-  }
+  return 0;
 }

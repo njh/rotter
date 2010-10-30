@@ -48,11 +48,12 @@ int quiet = 0;          // Only display error messages
 int verbose = 0;        // Increase number of logging messages
 char* file_layout = DEFAULT_FILE_LAYOUT;  // File layout: Flat files or folder hierarchy ?
 char* archive_name = NULL;      // Archive file name
-int running = 1;        // True while still running
 int channels = DEFAULT_CHANNELS;    // Number of input channels
 float rb_duration = DEFAULT_RB_LEN;   // Duration of ring buffer
 char *root_directory = NULL;      // Root directory of archives
 int delete_hours = DEFAULT_DELETE_HOURS;  // Delete files after this many hours
+
+RotterRunState rotter_run_state = ROTTER_STATE_RUNNING;
 pid_t delete_child_pid = 0;     // PID of process deleting old files
 encoder_funcs_t* encoder = NULL;
 
@@ -115,7 +116,7 @@ termination_handler (int signum)
   signal(signum, termination_handler);
 
   // Signal the main thead to stop
-  running = 0;
+  rotter_run_state = ROTTER_STATE_QUITING;
 }
 
 
@@ -155,9 +156,8 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... )
 
   // If fatal then stop
   if (level == ROTTER_FATAL) {
-    if (running) {
-      // Quit gracefully
-      running = 0;
+    if (rotter_run_state == ROTTER_STATE_RUNNING) {
+      rotter_run_state = ROTTER_STATE_ERROR;
     } else {
       printf( "Fatal error while quiting; exiting immediately." );
       exit(-1);
@@ -495,6 +495,7 @@ static int init_ringbuffers()
     ringbuffers[b] = malloc(sizeof(rotter_ringbuffer_t));
     if (!ringbuffers[b]) {
       rotter_fatal("Cannot allocate memory for ringbuffer structure %d.", b);
+      return -1;
     }
 
     ringbuffers[b]->hour_start = 0;
@@ -508,6 +509,7 @@ static int init_ringbuffers()
       ringbuffers[b]->buffer[c] = jack_ringbuffer_create( ringbuffer_size );
       if (!ringbuffers[b]->buffer[c]) {
         rotter_fatal("Cannot create ringbuffer buffer %d,%d.", b,c);
+        return -1;
       }
     }
   }
@@ -632,8 +634,8 @@ int main(int argc, char *argv[])
 
   // Validate parameters
   if (quiet && verbose) {
-      rotter_error("Can't be quiet and verbose at the same time.");
-      usage();
+    rotter_error("Can't be quiet and verbose at the same time.");
+    usage();
   }
 
   // Check the number of channels
@@ -657,15 +659,22 @@ int main(int argc, char *argv[])
       rotter_debug("Root directory: %s", root_directory);
     } else {
       rotter_fatal("Root directory does not exist: %s", root_directory);
+      goto cleanup;
     }
   }
 
 
   // Initialise JACK
-  init_jack( client_name, jack_opt );
+  if (init_jack( client_name, jack_opt )) {
+    rotter_debug("Failed to initialise Jack client.");
+    goto cleanup;
+  }
 
   // Create ring buffers
-  init_ringbuffers();
+  if (init_ringbuffers()) {
+    rotter_debug("Failed to initialise ring buffers.");
+    goto cleanup;
+  }
 
   // Initialise encoder
   for(i=0; format_map[i].name; i++) {
@@ -691,18 +700,20 @@ int main(int argc, char *argv[])
   // Failed to find match?
   if (encoder==NULL && format_map[i].name==NULL) {
     rotter_fatal("Failed to find format [%s], please check the supported format list.", format);
+    goto cleanup;
   }
 
   // Other failure?
   if (encoder==NULL) {
     rotter_debug("Failed to initialise encoder.");
-    deinit_jack();
-    exit(-1);
+    goto cleanup;
   }
 
   // Activate JACK
-  if (jack_activate(client))
+  if (jack_activate(client)) {
     rotter_fatal("Cannot activate JACK client.");
+    goto cleanup;
+  }
 
   // Setup signal handlers
   signal(SIGTERM, termination_handler);
@@ -715,21 +726,34 @@ int main(int argc, char *argv[])
   if (connect_right && channels == 2) connect_jack_port( connect_right, inport[1] );
 
 
-  while( running ) {
+  while( rotter_run_state == ROTTER_STATE_RUNNING ) {
     process_audio(encoder);
   }
+
+
+cleanup:
+
+  // Clean up JACK
+  deinit_jack();
+
+  // Free temporary buffers
+  if (tmp_buffer[0])
+    free(tmp_buffer[0]);
+
+  if (tmp_buffer[1])
+    free(tmp_buffer[1]);
+
+  // Free ring buffers and close files
+  deinit_ringbuffers();
 
   // Shut down encoder
   if (encoder)
     encoder->deinit();
 
-  // Clean up JACK
-  deinit_jack();
-
-  // FIXME: free tmp_buffer
-
-  deinit_ringbuffers();
-
-  return 0;
+  // Did something go wrong?
+  if (rotter_run_state == ROTTER_STATE_QUITING) {
+    return EXIT_SUCCESS;
+  } else {
+    return EXIT_FAILURE;
+  }
 }
-

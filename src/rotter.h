@@ -69,6 +69,15 @@
 #define SNDFILE_SAMPLES_PER_FRAME (512)
 #endif
 
+/* Some systems do not define EXIT_*, even with STDC_HEADERS.  */
+#ifndef EXIT_SUCCESS
+#define EXIT_SUCCESS (0)
+#endif
+
+#ifndef EXIT_FAILURE
+#define EXIT_FAILURE (1)
+#endif
+
 
 // ------- Logging ---------
 typedef enum {
@@ -94,24 +103,30 @@ typedef enum {
 
 
 // ------- Structures -------
+typedef enum {
+  ROTTER_STATE_RUNNING=0,    // Running normally
+  ROTTER_STATE_QUITING,      // Quiting normally
+  ROTTER_STATE_ERROR         // Quiting due to an error
+} RotterRunState;
+
 typedef struct rotter_ringbuffer_s
 {
     time_t hour_start;
     void* file_handle;
     jack_ringbuffer_t *buffer[2];
-    int close_file;                  // Flag to indigate that file should be closed
-    int overflow;                    // Flag to indigate that a ringbuffer overflowed
+    int close_file;                  // Flag to indicate that file should be closed
+    int overflow;                    // Flag to indicate that ringbuffer overflowed
 } rotter_ringbuffer_t;
 
 typedef struct encoder_funcs_s
 {
-  const char* file_suffix;            // Suffix for archive files
+  const char* file_suffix;              // Suffix for archive files
 
   void* (*open)(const char * filepath); // Result: pointer to file handle
   int (*close)(void *fh);               // Result: 0=success
 
   int (*write)(void *fh, size_t sample_count, jack_default_audio_sample_t *buffer[]);
-                                      // Result: 0=success
+                                        // Result: 0=success
 
   void (*deinit)();
 
@@ -135,11 +150,8 @@ typedef struct
 extern jack_port_t *inport[2];
 extern jack_client_t *client;
 extern output_format_map_t format_map[];
-extern int running;     // True while still running
-extern int channels;      // Number of input channels
-extern float rb_duration;   // Duration of ring buffer
-
-
+extern int channels;        // Number of input channels
+extern RotterRunState rotter_run_state;
 extern rotter_ringbuffer_t *ringbuffers[2];
 extern rotter_ringbuffer_t *active_ringbuffer;
 
@@ -151,10 +163,10 @@ extern rotter_ringbuffer_t *active_ringbuffer;
 void rotter_log( RotterLogLevel level, const char* fmt, ... );
 
 // In jack.c
-void init_jack( const char* client_name, jack_options_t jack_opt );
-void connect_jack_port( const char* out, jack_port_t *port );
-void autoconnect_jack_ports( jack_client_t* client );
-void deinit_jack();
+int init_jack( const char* client_name, jack_options_t jack_opt );
+int connect_jack_port( const char* out, jack_port_t *port );
+int autoconnect_jack_ports( jack_client_t* client );
+int deinit_jack();
 
 // In twolame.c
 encoder_funcs_t* init_twolame( const char* format, int channels, int bitrate );
