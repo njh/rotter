@@ -3,7 +3,7 @@
   sndfile.c
 
   rotter: Recording of Transmission / Audio Logger
-  Copyright (C) 2007-2009  Nicholas J. Humfrey
+  Copyright (C) 2007-2010  Nicholas J. Humfrey
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
