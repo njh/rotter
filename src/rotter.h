@@ -133,15 +133,15 @@ typedef struct encoder_funcs_s
 } encoder_funcs_t;
 
 
-typedef struct
+typedef struct output_format_s
 {
   const char  *name ;
   const char  *desc ;
-  size_t      samples_per_frame;
+  size_t      samples_per_frame ;
   int         param ;
 
-  encoder_funcs_t* (*initfunc)(const char* format, int channels, int bitrate);
-} output_format_map_t;
+  encoder_funcs_t* (*initfunc)(struct output_format_s *format, int channels, int bitrate);
+} output_format_t;
 
 
 
@@ -149,7 +149,6 @@ typedef struct
 // ------- Globals ---------
 extern jack_port_t *inport[2];
 extern jack_client_t *client;
-extern output_format_map_t format_map[];
 extern int channels;        // Number of input channels
 extern RotterRunState rotter_run_state;
 extern rotter_ringbuffer_t *ringbuffers[2];
@@ -169,13 +168,13 @@ int autoconnect_jack_ports( jack_client_t* client );
 int deinit_jack();
 
 // In twolame.c
-encoder_funcs_t* init_twolame( const char* format, int channels, int bitrate );
+encoder_funcs_t* init_twolame( output_format_t* format, int channels, int bitrate );
 
 // In lame.c
-encoder_funcs_t* init_lame( const char* format, int channels, int bitrate );
+encoder_funcs_t* init_lame( output_format_t* format, int channels, int bitrate );
 
 // In sndfile.c
-encoder_funcs_t* init_sndfile( const char* format, int channels, int bitrate );
+encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrate );
 
 // In mpegaudiofile.c
 int close_mpegaudio_file(void* fh);

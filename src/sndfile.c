@@ -123,36 +123,31 @@ static void* open_sndfile(const char* filepath)
 }
 
 
-encoder_funcs_t* init_sndfile( const char* fmt_str, int channels, int bitrate )
+encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrate )
 {
   encoder_funcs_t* funcs = NULL;
-
-  char sndlibver[128];
   SF_FORMAT_INFO format_info;
   SF_FORMAT_INFO subformat_info;
-  int i;
+  char sndlibver[128];
 
   // Zero the SF_INFO structures
   bzero( &sfinfo, sizeof( SF_INFO ) );
   bzero( &format_info, sizeof( SF_FORMAT_INFO ) );
   bzero( &subformat_info, sizeof( SF_FORMAT_INFO ) );
 
-  // Lookup the format parameters
-  for(i=0; format_map[i].name; i++) {
-    if (strcmp( format_map[i].name, fmt_str ) == 0) {
-      sfinfo.format = format_map[i].param;
-    }
-  }
-
-  // Check it found something
+  // Check the format parameter flags
+  sfinfo.format = format->param;
   if (sfinfo.format == 0x00) {
-    rotter_error( "No libsndfile format flags defined for [%s]\n", fmt_str );
+    rotter_error( "No libsndfile format flags defined for [%s]", format->name );
     return NULL;
   }
 
   // Get the version of libsndfile
-  sf_command(NULL, SFC_GET_LIB_VERSION, sndlibver, sizeof(sndlibver));
-  rotter_debug( "Encoding using libsndfile version %s.", sndlibver );
+  if (sf_command(NULL, SFC_GET_LIB_VERSION, sndlibver, sizeof(sndlibver))>0) {
+    rotter_debug( "Encoding using libsndfile version %s.", sndlibver );
+  } else {
+    rotter_debug( "Failed to get libsndfile version.");
+  }
 
   // Lookup inforamtion about the format and subtype
   format_info.format = sfinfo.format & SF_FORMAT_TYPEMASK;

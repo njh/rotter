@@ -92,7 +92,7 @@ static void deinit_twolame()
 }
 
 
-encoder_funcs_t* init_twolame( const char* format, int channels, int bitrate )
+encoder_funcs_t* init_twolame( output_format_t* format, int channels, int bitrate )
 {
   encoder_funcs_t* funcs = NULL;
 

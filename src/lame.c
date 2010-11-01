@@ -152,7 +152,7 @@ static const char* lame_get_mode_name( lame_global_flags *glopts )
   else { return "Unknown Mode"; }
 }
 
-encoder_funcs_t* init_lame( const char* format, int channels, int bitrate )
+encoder_funcs_t* init_lame( output_format_t* format, int channels, int bitrate )
 {
   encoder_funcs_t* funcs = NULL;
 

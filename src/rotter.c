@@ -57,12 +57,12 @@ RotterRunState rotter_run_state = ROTTER_STATE_RUNNING;
 pid_t delete_child_pid = 0;     // PID of process deleting old files
 encoder_funcs_t* encoder = NULL;
 
-size_t samples_per_frame = 0;  // FIXME: should this be a global?
 jack_default_audio_sample_t *tmp_buffer[2];
 rotter_ringbuffer_t *ringbuffers[2] = {NULL,NULL};
 rotter_ringbuffer_t *active_ringbuffer = NULL;
 
-output_format_map_t format_map [] =
+output_format_t *output_format;
+output_format_t format_list [] =
 {
 
 #ifdef HAVE_LAME
@@ -99,7 +99,7 @@ output_format_map_t format_map [] =
   // End of list
   { NULL,   NULL,               0 },
 
-} ; /* format_map */
+} ; /* format_list */
 
 
 
@@ -417,7 +417,7 @@ static void process_audio()
     }
 
     // Read some audio from the buffer
-    samples = read_from_ringbuffer( ringbuffer, samples_per_frame );
+    samples = read_from_ringbuffer( ringbuffer, output_format->samples_per_frame );
     if (samples < 1) {
       continue;
     } else {
@@ -472,7 +472,7 @@ static void process_audio()
 
   if (total_samples == 0) {
     // FIXME: caculate this once at the start
-    float sleep_time = ((float)samples_per_frame / jack_get_sample_rate( client ));
+    float sleep_time = ((float)output_format->samples_per_frame / jack_get_sample_rate( client ));
     usleep( sleep_time * 1000000 );
   }
 
@@ -580,8 +580,8 @@ static void usage()
 
   // Display the available audio output formats
   printf("\nSupported audio output formats:\n");
-  for(i=0; format_map[i].name; i++) {
-    printf("   %-6s        %s", format_map[i].name, format_map[i].desc );
+  for(i=0; format_list[i].name; i++) {
+    printf("   %-6s        %s", format_list[i].name, format_list[i].desc );
     if (i==0) printf("   [Default]");
     printf("\n");
   }
@@ -599,7 +599,7 @@ int main(int argc, char *argv[])
   char *client_name = DEFAULT_CLIENT_NAME;
   char *connect_left = NULL;
   char *connect_right = NULL;
-  const char *format = format_map[0].name;
+  const char *format_name = NULL;
   int bitrate = DEFAULT_BITRATE;
   int i,opt;
 
@@ -615,7 +615,7 @@ int main(int argc, char *argv[])
       case 'n':  client_name = optarg; break;
       case 'N':  archive_name = optarg; break;
       case 'j':  jack_opt |= JackNoStartServer; break;
-      case 'f':  format = str_tolower(optarg); break;
+      case 'f':  format_name = str_tolower(optarg); break;
       case 'b':  bitrate = atoi(optarg); break;
       case 'd':  delete_hours = atoi(optarg); break;
       case 'c':  channels = atoi(optarg); break;
@@ -658,6 +658,23 @@ int main(int argc, char *argv[])
     }
   }
 
+  // Search for the selected output format
+  if (format_name) {
+    for(i=0; format_list[i].name; i++) {
+      if (strcmp( format_list[i].name, format_name ) == 0) {
+        // Found desired format
+        output_format = &format_list[i];
+        rotter_debug("User selected [%s] '%s'.",  output_format->name,  output_format->desc);
+        break;
+      }
+    }
+    if (output_format==NULL) {
+      rotter_fatal("Failed to find format [%s], please check the supported format list.", format_name);
+      goto cleanup;
+    }
+  } else {
+    output_format = &format_list[0];
+  }
 
   // Initialise JACK
   if (init_jack( client_name, jack_opt )) {
@@ -672,33 +689,7 @@ int main(int argc, char *argv[])
   }
 
   // Initialise encoder
-  for(i=0; format_map[i].name; i++) {
-    if (strcmp( format_map[i].name, format ) == 0) {
-      // Display information about the format
-      rotter_debug("User selected [%s] '%s'.",  format_map[i].name,  format_map[i].desc);
-
-      // Call the init function
-      if (format_map[i].initfunc == NULL) {
-        rotter_error("Error: no init function defined for format [%s].", format );
-      } else {
-        encoder = format_map[i].initfunc( format, channels, bitrate );
-      }
-
-      // FIXME:
-      samples_per_frame = format_map[i].samples_per_frame;
-
-      // Found encoder
-      break;
-    }
-  }
-
-  // Failed to find match?
-  if (encoder==NULL && format_map[i].name==NULL) {
-    rotter_fatal("Failed to find format [%s], please check the supported format list.", format);
-    goto cleanup;
-  }
-
-  // Other failure?
+  encoder = output_format->initfunc(output_format, channels, bitrate);
   if (encoder==NULL) {
     rotter_debug("Failed to initialise encoder.");
     goto cleanup;
