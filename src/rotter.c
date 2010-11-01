@@ -443,10 +443,7 @@ static void process_audio()
       // FIXME: check for error closing file
       ringbuffer->close_file = 0;
       ringbuffer->file_handle = NULL;
-    }
 
-
-/*
       // Delete files older delete_hours
       if (delete_hours>0) {
         if (delete_child_pid) {
@@ -470,10 +467,8 @@ static void process_audio()
         }
       }
     }
-*/
 
-
-  }
+  } // for(b=0..2)
 
   if (total_samples == 0) {
     // FIXME: caculate this once at the start
