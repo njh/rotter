@@ -351,13 +351,6 @@ static size_t read_from_ringbuffer(rotter_ringbuffer_t *ringbuffer, size_t desir
 
   // Get the audio out of the ring buffer
   for (c=0; c<channels; c++) {
-    // FIXME: check size is enough before trying to realloc
-
-    // Ensure the temporary buffer is big enough
-    tmp_buffer[c] = (jack_default_audio_sample_t*)realloc(tmp_buffer[c], desired_bytes);
-    if (!tmp_buffer[c])
-      rotter_fatal( "realloc on tmp_buffer failed" );
-
     // Copy frames from ring buffer to temporary buffer
     bytes_read = jack_ringbuffer_read( ringbuffer->buffer[c], (char*)tmp_buffer[c], desired_bytes);
     if (bytes_read != desired_bytes) {
@@ -535,6 +528,33 @@ static int deinit_ringbuffers()
   return 0;
 }
 
+static int init_tmpbuffers(int sample_count)
+{
+  size_t buffer_size = sample_count * sizeof(jack_default_audio_sample_t);
+  int c;
+
+  for(c=0; c<2; c++) {
+    tmp_buffer[c] = (jack_default_audio_sample_t*)malloc(buffer_size);
+    if (!tmp_buffer[c]) {
+      rotter_fatal( "Failed to allocate memory for temporary buffer %d", c);
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
+static int deinit_tmpbuffers()
+{
+  int c;
+
+  for(c=0; c<2; c++) {
+    if (tmp_buffer[c])
+      free(tmp_buffer[c]);
+  }
+
+  return 0;
+}
 
 static char* str_tolower( char* str )
 {
@@ -546,7 +566,6 @@ static char* str_tolower( char* str )
 
   return str;
 }
-
 
 // Display how to use this program
 static void usage()
@@ -686,6 +705,12 @@ int main(int argc, char *argv[])
     goto cleanup;
   }
 
+  // Create temporary buffer for reading samples into
+  if (init_tmpbuffers(output_format->samples_per_frame)) {
+    rotter_debug("Failed to initialise temporary buffers.");
+    goto cleanup;
+  }
+
   // Initialise encoder
   encoder = output_format->initfunc(output_format, channels, bitrate);
   if (encoder==NULL) {
@@ -720,14 +745,8 @@ cleanup:
   // Clean up JACK
   deinit_jack();
 
-  // Free temporary buffers
-  if (tmp_buffer[0])
-    free(tmp_buffer[0]);
-
-  if (tmp_buffer[1])
-    free(tmp_buffer[1]);
-
-  // Free ring buffers and close files
+  // Free buffers and close files
+  deinit_tmpbuffers();
   deinit_ringbuffers();
 
   // Shut down encoder
