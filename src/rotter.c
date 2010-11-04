@@ -440,7 +440,6 @@ static void process_audio()
     // Close the old file
     if (ringbuffer->close_file) {
       encoder->close(ringbuffer->file_handle);
-      // FIXME: check for error closing file
       ringbuffer->close_file = 0;
       ringbuffer->file_handle = NULL;
 
@@ -526,7 +525,6 @@ static int deinit_ringbuffers()
 
       if (ringbuffers[b]->file_handle) {
         encoder->close(ringbuffers[b]->file_handle);
-        // FIXME: check for error closing file
         ringbuffers[b]->file_handle = NULL;
       }
 
