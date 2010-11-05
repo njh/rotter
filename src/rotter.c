@@ -57,11 +57,11 @@ RotterRunState rotter_run_state = ROTTER_STATE_RUNNING;
 pid_t delete_child_pid = 0;     // PID of process deleting old files
 encoder_funcs_t* encoder = NULL;
 
-jack_default_audio_sample_t *tmp_buffer[2];
+jack_default_audio_sample_t *tmp_buffer[2] = {NULL,NULL};
 rotter_ringbuffer_t *ringbuffers[2] = {NULL,NULL};
 rotter_ringbuffer_t *active_ringbuffer = NULL;
 
-output_format_t *output_format;
+output_format_t *output_format = NULL;
 output_format_t format_list [] =
 {
 
