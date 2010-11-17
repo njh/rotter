@@ -104,16 +104,14 @@ output_format_t format_list [] =
 
 
 
-static void
-termination_handler (int signum)
+static
+void rotter_termination_handler (int signum)
 {
   switch(signum) {
     case SIGHUP:  rotter_info("Got hangup signal."); break;
     case SIGTERM: rotter_info("Got termination signal."); break;
     case SIGINT:  rotter_info("Got interupt signal."); break;
   }
-
-  signal(signum, termination_handler);
 
   // Signal the main thead to stop
   rotter_run_state = ROTTER_STATE_QUITING;
@@ -170,7 +168,7 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... )
 
 
 
-static int directory_exists(const char * filepath)
+static int rotter_directory_exists(const char * filepath)
 {
   struct stat s;
   int i = stat ( filepath, &s );
@@ -190,11 +188,11 @@ static int directory_exists(const char * filepath)
 }
 
 
-static int mkdir_p( const char* dir )
+static int rotter_mkdir_p( const char* dir )
 {
   int result = 0;
 
-  if (directory_exists( dir )) {
+  if (rotter_directory_exists( dir )) {
     return 0;
   }
 
@@ -208,7 +206,7 @@ static int mkdir_p( const char* dir )
       for(i=strlen(parent); i>0; i--) {
         if (parent[i]=='/') {
           parent[i]=0;
-          result = mkdir_p( parent );
+          result = rotter_mkdir_p( parent );
           break;
         }
       }
@@ -254,7 +252,8 @@ static char * time_to_filepath_hierarchy( time_t clock, const char* suffix )
 {
   struct tm tm;
   char* filepath = malloc( MAX_FILEPATH_LEN );
-
+  if (!filepath)
+      return NULL;
 
   localtime_r( &clock, &tm );
 
@@ -262,7 +261,7 @@ static char * time_to_filepath_hierarchy( time_t clock, const char* suffix )
   snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
         root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour );
 
-  if (mkdir_p( filepath ))
+  if (rotter_mkdir_p( filepath ))
     rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
 
 
@@ -284,7 +283,8 @@ static char * time_to_filepath_combo( time_t clock, const char* suffix )
 {
   struct tm tm;
   char* filepath = malloc( MAX_FILEPATH_LEN );
-
+  if (!filepath)
+      return NULL;
 
   localtime_r( &clock, &tm );
 
@@ -292,7 +292,7 @@ static char * time_to_filepath_combo( time_t clock, const char* suffix )
   snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
         root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour );
 
-  if (mkdir_p( filepath ))
+  if (rotter_mkdir_p( filepath ))
     rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
 
 
@@ -312,7 +312,8 @@ static char * time_to_filepath_dailydir( time_t clock, const char* suffix )
 {
   struct tm tm;
   char* filepath = malloc( MAX_FILEPATH_LEN );
-
+  if (!filepath)
+      return NULL;
 
   localtime_r( &clock, &tm );
 
@@ -320,7 +321,7 @@ static char * time_to_filepath_dailydir( time_t clock, const char* suffix )
   snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d",
         root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday );
 
-  if (mkdir_p( filepath ))
+  if (rotter_mkdir_p( filepath ))
     rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
 
 
@@ -336,7 +337,7 @@ static char * time_to_filepath_dailydir( time_t clock, const char* suffix )
   return filepath;
 }
 
-static size_t read_from_ringbuffer(rotter_ringbuffer_t *ringbuffer, size_t desired_frames)
+static size_t rotter_read_from_ringbuffer(rotter_ringbuffer_t *ringbuffer, size_t desired_frames)
 {
   size_t desired_bytes = desired_frames * sizeof(jack_default_audio_sample_t);
   int c, bytes_read=0;
@@ -362,39 +363,39 @@ static size_t read_from_ringbuffer(rotter_ringbuffer_t *ringbuffer, size_t desir
 }
 
 
-
-// FIXME: think of better function name
-static int open_file(rotter_ringbuffer_t *ringbuffer)
+static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
 {
-    char* filepath = NULL;
-    if (file_layout[0] == 'h' || file_layout[0] == 'H') {
-      filepath = time_to_filepath_hierarchy( ringbuffer->hour_start, encoder->file_suffix );
-    } else if (file_layout[0] == 'f' || file_layout[0] == 'F') {
-      filepath = time_to_filepath_flat( ringbuffer->hour_start, encoder->file_suffix );
-    } else if (file_layout[0] == 'c' || file_layout[0] == 'C') {
-      filepath = time_to_filepath_combo( ringbuffer->hour_start, encoder->file_suffix );
-    } else if (file_layout[0] == 'd' || file_layout[0] == 'D') {
-      filepath = time_to_filepath_dailydir( ringbuffer->hour_start, encoder->file_suffix );
-    } else {
-      rotter_fatal("Unknown file layout: %s", file_layout);
-    }
+  char* filepath = NULL;
+  if (file_layout[0] == 'h' || file_layout[0] == 'H') {
+    filepath = time_to_filepath_hierarchy( ringbuffer->hour_start, encoder->file_suffix );
+  } else if (file_layout[0] == 'f' || file_layout[0] == 'F') {
+    filepath = time_to_filepath_flat( ringbuffer->hour_start, encoder->file_suffix );
+  } else if (file_layout[0] == 'c' || file_layout[0] == 'C') {
+    filepath = time_to_filepath_combo( ringbuffer->hour_start, encoder->file_suffix );
+  } else if (file_layout[0] == 'd' || file_layout[0] == 'D') {
+    filepath = time_to_filepath_dailydir( ringbuffer->hour_start, encoder->file_suffix );
+  } else {
+    rotter_fatal("Unknown file layout: %s", file_layout);
+  }
 
-    // Open the new file
-    rotter_info( "Opening new archive file: %s", filepath );
-    ringbuffer->file_handle = encoder->open(filepath);
-    if (ringbuffer->file_handle == NULL) {
-      // FIXME: don't keep trying to open same file after an error?
+  if (!filepath)
       return 1;
-    }
 
-    free(filepath);
+  // Open the new file
+  rotter_info( "Opening new archive file: %s", filepath );
+  ringbuffer->file_handle = encoder->open(filepath);
+  free(filepath);
 
+  if (ringbuffer->file_handle) {
+    // Success
     return 0;
+  } else {
+    return 1;
+  }
 }
 
 
-// FIXME: think of better function name
-static void process_audio()
+static void rotter_process_audio()
 {
   int total_samples = 0;
   int b;
@@ -402,6 +403,7 @@ static void process_audio()
   for(b=0; b<2; b++) {
     rotter_ringbuffer_t *ringbuffer = ringbuffers[b];
     int samples = 0;
+    int result;
 
     // Has there been a ringbuffer overflow?
     if (ringbuffer->overflow) {
@@ -410,7 +412,7 @@ static void process_audio()
     }
 
     // Read some audio from the buffer
-    samples = read_from_ringbuffer( ringbuffer, output_format->samples_per_frame );
+    samples = rotter_read_from_ringbuffer( ringbuffer, output_format->samples_per_frame );
     if (samples < 1) {
       continue;
     } else {
@@ -420,11 +422,15 @@ static void process_audio()
     // Open a new file?
     if (ringbuffer->file_handle == NULL) {
       rotter_debug("Going to open new file for ringbuffer %c.", b==0 ? 'A':'B');
-      open_file(ringbuffer);
+      result = rotter_open_file(ringbuffer);
+      if (result) {
+        // FIXME: don't keep trying to open same file after an error?
+        break;
+      }
     }
 
     // Write some audio to disk
-    int result = encoder->write(ringbuffer->file_handle, samples, tmp_buffer);
+    result = encoder->write(ringbuffer->file_handle, samples, tmp_buffer);
     if (result) {
       rotter_fatal("Shutting down, due to encoding error.");
       break;
@@ -556,7 +562,7 @@ static int deinit_tmpbuffers()
   return 0;
 }
 
-static char* str_tolower( char* str )
+static char* rotter_str_tolower( char* str )
 {
   int i=0;
 
@@ -632,7 +638,7 @@ int main(int argc, char *argv[])
       case 'n':  client_name = optarg; break;
       case 'N':  archive_name = optarg; break;
       case 'j':  jack_opt |= JackNoStartServer; break;
-      case 'f':  format_name = str_tolower(optarg); break;
+      case 'f':  format_name = rotter_str_tolower(optarg); break;
       case 'b':  bitrate = atoi(optarg); break;
       case 'd':  delete_hours = atoi(optarg); break;
       case 'c':  channels = atoi(optarg); break;
@@ -667,7 +673,7 @@ int main(int argc, char *argv[])
     if (root_directory[strlen(root_directory)-1] == '/')
       root_directory[strlen(root_directory)-1] = 0;
 
-    if (directory_exists(root_directory)) {
+    if (rotter_directory_exists(root_directory)) {
       rotter_debug("Root directory: %s", root_directory);
     } else {
       rotter_fatal("Root directory does not exist: %s", root_directory);
@@ -725,9 +731,9 @@ int main(int argc, char *argv[])
   }
 
   // Setup signal handlers
-  signal(SIGTERM, termination_handler);
-  signal(SIGINT, termination_handler);
-  signal(SIGHUP, termination_handler);
+  signal(SIGTERM, rotter_termination_handler);
+  signal(SIGINT, rotter_termination_handler);
+  signal(SIGHUP, rotter_termination_handler);
 
   // Auto-connect our input ports ?
   if (autoconnect) autoconnect_jack_ports( client );
@@ -736,7 +742,7 @@ int main(int argc, char *argv[])
 
 
   while( rotter_run_state == ROTTER_STATE_RUNNING ) {
-    process_audio(encoder);
+    rotter_process_audio(encoder);
   }
 
 

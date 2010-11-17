@@ -111,7 +111,7 @@ typedef enum {
 
 typedef struct rotter_ringbuffer_s
 {
-    time_t hour_start;
+    time_t hour_start;               // The time (in seconds) that the hour started at
     void* file_handle;
     jack_ringbuffer_t *buffer[2];
     int close_file;                  // Flag to indicate that file should be closed
