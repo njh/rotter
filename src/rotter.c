@@ -395,7 +395,7 @@ static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
 }
 
 
-static void rotter_process_audio()
+static int rotter_process_audio()
 {
   int total_samples = 0;
   int b;
@@ -468,12 +468,7 @@ static void rotter_process_audio()
 
   } // for(b=0..2)
 
-  if (total_samples == 0) {
-    // FIXME: caculate this once at the start
-    float sleep_time = ((float)output_format->samples_per_frame / jack_get_sample_rate( client ));
-    usleep( sleep_time * 1000000 );
-  }
-
+  return total_samples;
 }
 
 static int init_ringbuffers()
@@ -624,6 +619,7 @@ int main(int argc, char *argv[])
   char *connect_right = NULL;
   const char *format_name = NULL;
   int bitrate = DEFAULT_BITRATE;
+  float sleep_time = 0;
   int i,opt;
 
   // Make STDOUT unbuffered
@@ -740,9 +736,16 @@ int main(int argc, char *argv[])
   if (connect_left) connect_jack_port( connect_left, inport[0] );
   if (connect_right && channels == 2) connect_jack_port( connect_right, inport[1] );
 
+  // Calculate period to wait when there is no audio to process
+  sleep_time = (2.0f * output_format->samples_per_frame / jack_get_sample_rate( client ));
+  rotter_debug("Sleep period is %dms.", (int)(sleep_time * 1000));
+
 
   while( rotter_run_state == ROTTER_STATE_RUNNING ) {
-    rotter_process_audio(encoder);
+    int samples_processed = rotter_process_audio(encoder);
+    if (samples_processed <= 0) {
+      usleep(sleep_time * 1000000);
+    }
   }
 
 
