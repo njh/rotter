@@ -424,7 +424,7 @@ static int rotter_process_audio()
       rotter_debug("Going to open new file for ringbuffer %c.", b==0 ? 'A':'B');
       result = rotter_open_file(ringbuffer);
       if (result) {
-        // FIXME: don't keep trying to open same file after an error?
+        rotter_error("Failed to open file.");
         break;
       }
     }
@@ -432,13 +432,13 @@ static int rotter_process_audio()
     // Write some audio to disk
     result = encoder->write(ringbuffer->file_handle, samples, tmp_buffer);
     if (result) {
-      rotter_fatal("Shutting down, due to encoding error.");
+      rotter_error("An error occured while trying to write audio to disk.");
       break;
     }
 
     // Close the old file
     if (ringbuffer->close_file) {
-      encoder->close(ringbuffer->file_handle);
+      encoder->close(ringbuffer->file_handle, ringbuffer->hour_start);
       ringbuffer->close_file = 0;
       ringbuffer->file_handle = NULL;
 
@@ -518,7 +518,7 @@ static int deinit_ringbuffers()
       }
 
       if (ringbuffers[b]->file_handle) {
-        encoder->close(ringbuffers[b]->file_handle);
+        encoder->close(ringbuffers[b]->file_handle, ringbuffers[b]->hour_start);
         ringbuffers[b]->file_handle = NULL;
       }
 

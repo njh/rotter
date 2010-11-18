@@ -91,7 +91,7 @@ static void deinit_sndfile()
 }
 
 
-static int close_sndfile(void *fh)
+static int close_sndfile(void *fh, time_t file_start)
 {
   SNDFILE *sndfile = (SNDFILE *)fh;
   if (sndfile==NULL) return -1;

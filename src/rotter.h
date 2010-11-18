@@ -120,13 +120,13 @@ typedef struct rotter_ringbuffer_s
 
 typedef struct encoder_funcs_s
 {
-  const char* file_suffix;              // Suffix for archive files
+  const char* file_suffix;                    // Suffix for archive files
 
-  void* (*open)(const char * filepath); // Result: pointer to file handle
-  int (*close)(void *fh);               // Result: 0=success
+  void* (*open)(const char * filepath);       // Result: pointer to file handle
+  int (*close)(void *fh, time_t file_start);  // Result: 0=success
 
   int (*write)(void *fh, size_t sample_count, jack_default_audio_sample_t *buffer[]);
-                                        // Result: 0=success
+                                              // Result: 0=success
 
   void (*deinit)();
 
@@ -177,8 +177,8 @@ encoder_funcs_t* init_lame( output_format_t* format, int channels, int bitrate )
 encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrate );
 
 // In mpegaudiofile.c
-int close_mpegaudio_file(void* fh);
 void* open_mpegaudio_file(const char* filepath);
+int close_mpegaudio_file(void* fh, time_t file_start);
 
 // In deletefiles.c
 int delete_files( const char* dir, int hours );

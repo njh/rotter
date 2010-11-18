@@ -68,10 +68,6 @@ typedef struct id3v1_s
 } id3v1_t;
 
 
-// FIXME: work out where/how to set this
-time_t file_start = 0;
-
-
 static char* gethostname_fqdn()
 {
   char hostname[ HOST_NAME_MAX ];
@@ -110,7 +106,7 @@ static char* gethostname_fqdn()
 
 
 // Write an ID3v1 tag to a file handle
-static void write_id3v1(FILE* file)
+static void write_id3v1(FILE* file, time_t file_start)
 {
   char *hostname;
   char year[5];
@@ -123,7 +119,6 @@ static void write_id3v1(FILE* file)
   bzero( &id3, sizeof( id3v1_t ));
 
   // Get a breakdown of the time recording started at
-  // FIXME: work out how/where to set file_start
   localtime_r( &file_start, &tm );
 
 
@@ -164,14 +159,14 @@ static void write_id3v1(FILE* file)
 }
 
 
-int close_mpegaudio_file(void* fh)
+int close_mpegaudio_file(void* fh, time_t file_start)
 {
   FILE *file = (FILE*)fh;
 
   if (file==NULL) return -1;
 
   // Write ID3v1 tags
-  write_id3v1(file);
+  write_id3v1(file, file_start);
 
   rotter_debug("Closing MPEG Audio output file.");
 
