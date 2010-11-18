@@ -111,12 +111,19 @@ static int close_sndfile(void *fh, time_t file_start)
 static void* open_sndfile(const char* filepath)
 {
   SNDFILE *sndfile = NULL;
+  int result = 0;
 
   rotter_debug("Opening libsndfile output file: %s", filepath);
-  sndfile = sf_open( filepath, SFM_WRITE, &sfinfo );
+  sndfile = sf_open( filepath, SFM_RDWR, &sfinfo );
   if (sndfile==NULL) {
     rotter_error( "Failed to open output file: %s", sf_strerror(NULL) );
     return NULL;
+  }
+
+  // Seek to the end of the file, so that we don't overwrite any existing audio
+  result = sf_seek(sndfile, 0, SEEK_END);
+  if (result < 0) {
+    rotter_error( "Failed to seek to end of file before writing: %s", sf_strerror(sndfile) );
   }
 
   return (void*)sndfile;
