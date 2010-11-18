@@ -46,6 +46,7 @@
 // ------- Globals -------
 int quiet = 0;          // Only display error messages
 int verbose = 0;        // Increase number of logging messages
+int utc = 0;            // Use UTC rather than local time for filenames
 char* file_layout = DEFAULT_FILE_LAYOUT;  // File layout: Flat files or folder hierarchy ?
 char* archive_name = NULL;      // Archive file name
 int channels = DEFAULT_CHANNELS;    // Number of input channels
@@ -227,39 +228,33 @@ static int rotter_mkdir_p( const char* dir )
 }
 
 
-static char * time_to_filepath_flat( time_t clock, const char* suffix )
+static char * time_to_filepath_flat( struct tm *tm, const char* suffix )
 {
-  struct tm tm;
   char* filepath = malloc( MAX_FILEPATH_LEN );
-
-  localtime_r( &clock, &tm );
 
   if (archive_name) {
     // Create the full file path
     snprintf( filepath, MAX_FILEPATH_LEN, "%s/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, archive_name, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+          root_directory, archive_name, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
   } else {
     // Create the full file path
     snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
   }
 
   return filepath;
 }
 
 
-static char * time_to_filepath_hierarchy( time_t clock, const char* suffix )
+static char * time_to_filepath_hierarchy( struct tm *tm, const char* suffix )
 {
-  struct tm tm;
   char* filepath = malloc( MAX_FILEPATH_LEN );
   if (!filepath)
       return NULL;
 
-  localtime_r( &clock, &tm );
-
   // Make sure the parent directories exists
   snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
-        root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour );
+        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour );
 
   if (rotter_mkdir_p( filepath ))
     rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
@@ -268,10 +263,10 @@ static char * time_to_filepath_hierarchy( time_t clock, const char* suffix )
   // Create the full file path
   if (archive_name) {
     snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s.%s",
-        root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, archive_name, suffix );
+        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, archive_name, suffix );
   } else {
     snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s.%s",
-        root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, DEFAULT_ARCHIVE_NAME, suffix );
+        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, DEFAULT_ARCHIVE_NAME, suffix );
   }
 
 
@@ -279,18 +274,15 @@ static char * time_to_filepath_hierarchy( time_t clock, const char* suffix )
 }
 
 
-static char * time_to_filepath_combo( time_t clock, const char* suffix )
+static char * time_to_filepath_combo( struct tm *tm, const char* suffix )
 {
-  struct tm tm;
   char* filepath = malloc( MAX_FILEPATH_LEN );
   if (!filepath)
       return NULL;
 
-  localtime_r( &clock, &tm );
-
   // Make sure the parent directories exists
   snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
-        root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour );
+        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour );
 
   if (rotter_mkdir_p( filepath ))
     rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
@@ -299,27 +291,24 @@ static char * time_to_filepath_combo( time_t clock, const char* suffix )
   // Create the full file path
   if (archive_name) {
     snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, archive_name, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, archive_name, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
   } else {
     snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
   }
 
   return filepath;
 }
 
-static char * time_to_filepath_dailydir( time_t clock, const char* suffix )
+static char * time_to_filepath_dailydir( struct tm *tm, const char* suffix )
 {
-  struct tm tm;
   char* filepath = malloc( MAX_FILEPATH_LEN );
   if (!filepath)
       return NULL;
 
-  localtime_r( &clock, &tm );
-
   // Make sure the parent directories exists
   snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d",
-        root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday );
+        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday );
 
   if (rotter_mkdir_p( filepath ))
     rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
@@ -328,10 +317,10 @@ static char * time_to_filepath_dailydir( time_t clock, const char* suffix )
   // Create the full file path
   if (archive_name) {
     snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, archive_name, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, archive_name, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
   } else {
     snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, suffix );
+          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
   }
 
   return filepath;
@@ -366,20 +355,28 @@ static size_t rotter_read_from_ringbuffer(rotter_ringbuffer_t *ringbuffer, size_
 static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
 {
   char* filepath = NULL;
+  struct tm tm;
+
+  if(utc) {
+    gmtime_r( &ringbuffer->hour_start, &tm );
+  } else {
+    localtime_r( &ringbuffer->hour_start, &tm );
+  }
+
   if (file_layout[0] == 'h' || file_layout[0] == 'H') {
-    filepath = time_to_filepath_hierarchy( ringbuffer->hour_start, encoder->file_suffix );
+    filepath = time_to_filepath_hierarchy( &tm, encoder->file_suffix );
   } else if (file_layout[0] == 'f' || file_layout[0] == 'F') {
-    filepath = time_to_filepath_flat( ringbuffer->hour_start, encoder->file_suffix );
+    filepath = time_to_filepath_flat( &tm, encoder->file_suffix );
   } else if (file_layout[0] == 'c' || file_layout[0] == 'C') {
-    filepath = time_to_filepath_combo( ringbuffer->hour_start, encoder->file_suffix );
+    filepath = time_to_filepath_combo( &tm, encoder->file_suffix );
   } else if (file_layout[0] == 'd' || file_layout[0] == 'D') {
-    filepath = time_to_filepath_dailydir( ringbuffer->hour_start, encoder->file_suffix );
+    filepath = time_to_filepath_dailydir( &tm, encoder->file_suffix );
   } else {
     rotter_fatal("Unknown file layout: %s", file_layout);
   }
 
   if (!filepath)
-      return 1;
+    return 1;
 
   // Open the new file
   rotter_info( "Opening new archive file: %s", filepath );
@@ -587,6 +584,7 @@ static void usage()
   printf("   -R <secs>     Length of the ring buffer (in seconds)\n");
   printf("   -L <layout>   File layout (default 'hierarchy')\n");
   printf("   -j            Don't automatically start jackd\n");
+  printf("   -u            Use UTC rather than local time in filenames\n");
   printf("   -v            Enable verbose mode\n");
   printf("   -q            Enable quiet mode\n");
 
@@ -626,7 +624,7 @@ int main(int argc, char *argv[])
   setbuf(stdout, NULL);
 
   // Parse Switches
-  while ((opt = getopt(argc, argv, "al:r:n:N:jf:b:d:c:R:L:vqh")) != -1) {
+  while ((opt = getopt(argc, argv, "al:r:n:N:jf:b:d:c:R:L:uvqh")) != -1) {
     switch (opt) {
       case 'a':  autoconnect = 1; break;
       case 'l':  connect_left = optarg; break;
@@ -640,6 +638,7 @@ int main(int argc, char *argv[])
       case 'c':  channels = atoi(optarg); break;
       case 'R':  rb_duration = atof(optarg); break;
       case 'L':  file_layout = optarg; break;
+      case 'u':  utc = 1; break;
       case 'v':  verbose = 1; break;
       case 'q':  quiet = 1; break;
       default:  usage(); break;

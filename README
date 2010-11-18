@@ -41,6 +41,7 @@ rotter [options] <root_directory>
    -R <secs>     Length of the ring buffer (in seconds)
    -L <layout>   File layout (default 'hierarchy')
    -j            Don't automatically start jackd
+   -u            Use UTC rather than local time in filenames
    -v            Enable verbose mode
    -q            Enable quiet mode
 
