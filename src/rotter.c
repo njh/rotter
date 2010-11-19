@@ -473,7 +473,7 @@ static int init_ringbuffers()
   size_t ringbuffer_size = 0;
   int b,c;
 
-  ringbuffer_size = jack_get_sample_rate( client ) * rb_duration * sizeof(float);
+  ringbuffer_size = jack_get_sample_rate( client ) * rb_duration * sizeof(jack_default_audio_sample_t);
   rotter_debug("Size of the ring buffers is %2.2f seconds (%d bytes).", rb_duration, (int)ringbuffer_size );
 
   for(b=0; b<2; b++) {
