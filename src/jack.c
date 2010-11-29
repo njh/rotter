@@ -26,6 +26,7 @@
 #include <math.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/time.h>
 #include <signal.h>
 #include <time.h>
 #include <getopt.h>
@@ -43,10 +44,9 @@ jack_client_t *client = NULL;
 
 
 // Returns unix timestamp for the start of this hour
-static time_t start_of_hour()
+static time_t start_of_hour(time_t now)
 {
   struct tm tm;
-  time_t now = time(NULL);
 
   // Break down the time
   localtime_r( &now, &tm );
@@ -59,6 +59,39 @@ static time_t start_of_hour()
 }
 
 
+static int write_to_ringbuffer(rotter_ringbuffer_t *rb, jack_nframes_t nframes)
+{
+  size_t to_write = sizeof(jack_default_audio_sample_t) * nframes;
+  unsigned int c;
+
+  if (nframes <= 0)
+    return 0;
+
+  for (c=0; c < channels; c++)
+  {
+    size_t space = jack_ringbuffer_write_space(rb->buffer[c]);
+    if (space < to_write) {
+      // Glitch in audio is preferable to a fatal error or ring buffer corruption
+      rb->overflow = 1;
+      return 0;
+    }
+  }
+
+  for (c=0; c < channels; c++)
+  {
+    char *buf  = (char*)jack_port_get_buffer(inport[c], nframes);
+    size_t len = jack_ringbuffer_write(rb->buffer[c], buf, to_write);
+    if (len < to_write) {
+      rotter_fatal("Failed to write to ring buffer.");
+      return 1;
+    }
+  }
+
+  // Success
+  return 0;
+}
+
+
 /* Callback called by JACK when audio is available
    Use as little CPU time as possible, just copy accross the audio
    into the ring buffer
@@ -66,11 +99,42 @@ static time_t start_of_hour()
 static
 int callback_jack(jack_nframes_t nframes, void *arg)
 {
-  size_t to_write = sizeof(jack_default_audio_sample_t) * nframes;
-  time_t this_hour = start_of_hour();
-  unsigned int c;
+  jack_nframes_t frames_until_whole_second = 0;
+  time_t this_hour;
+  struct timeval tv;
 
-  // Time to swap ring buffers?
+  // FIXME: check for error
+  gettimeofday(&tv, NULL);
+
+
+  // FIXME: this won't work if rotter is started *just* before the hour
+  if (active_ringbuffer) {
+    int result;
+    int duration;
+
+    // Calculate the number of frames until we have a whole number of seconds
+    // FIXME: simplify calculation?
+    frames_until_whole_second = jack_get_sample_rate( client ) *
+                                   ((float)(1000000 - tv.tv_usec) / 1000000);
+    if (frames_until_whole_second > nframes)
+      frames_until_whole_second = nframes;
+
+    result = write_to_ringbuffer(active_ringbuffer, frames_until_whole_second);
+    if (result)
+      return result;
+
+    // Calculate the duration of the audio that we wrote
+    // and add it on to the current time
+    // FIXME: simplify calculation?
+    duration = (1000000 * (frames_until_whole_second+1)) / jack_get_sample_rate( client );
+    if (tv.tv_usec + duration >= 1000000) {
+      tv.tv_usec += (duration - 1000000);
+      tv.tv_sec += 1;
+    }
+  }
+
+  // Time to swap ring buffers, if we are now in a new hour period
+  this_hour = start_of_hour(tv.tv_sec);
   if (active_ringbuffer == NULL || active_ringbuffer->hour_start != this_hour) {
     if (active_ringbuffer) {
       active_ringbuffer->close_file = 1;
@@ -83,28 +147,8 @@ int callback_jack(jack_nframes_t nframes, void *arg)
     active_ringbuffer->hour_start = this_hour;
   }
 
-  for (c=0; c < channels; c++)
-  {
-    size_t space = jack_ringbuffer_write_space(active_ringbuffer->buffer[c]);
-    if (space < to_write) {
-      // Glitch in audio is preferable to a fatal error or ring buffer corruption
-      active_ringbuffer->overflow = 1;
-      return 0;
-    }
-  }
-
-  for (c=0; c < channels; c++)
-  {
-    char *buf  = (char*)jack_port_get_buffer(inport[c], nframes);
-    size_t len = jack_ringbuffer_write(active_ringbuffer->buffer[c], buf, to_write);
-    if (len < to_write) {
-      rotter_fatal("Failed to write to ring buffer.");
-      return 1;
-    }
-  }
-
-  // Success
-  return 0;
+  // Finally, write any frames after the 1 second boundary
+  return write_to_ringbuffer(active_ringbuffer, nframes - frames_until_whole_second);
 }
 
 
