@@ -31,6 +31,7 @@
 #include <time.h>
 #include <getopt.h>
 #include <limits.h>
+#include <errno.h>
 
 #include "config.h"
 #include "rotter.h"
@@ -103,9 +104,11 @@ int callback_jack(jack_nframes_t nframes, void *arg)
   time_t this_hour;
   struct timeval tv;
 
-  // FIXME: check for error
-  gettimeofday(&tv, NULL);
-
+  // Get the current time
+  if (gettimeofday(&tv, NULL)) {
+    rotter_fatal("Failed to gettimeofday(): %s", strerror(errno));
+    return 1;
+  }
 
   // FIXME: this won't work if rotter is started *just* before the hour
   if (active_ringbuffer) {
