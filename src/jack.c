@@ -147,6 +147,7 @@ int callback_jack(jack_nframes_t nframes, void *arg)
     } else {
       active_ringbuffer = ringbuffers[0];
     }
+    active_ringbuffer->file_start = tv;
     active_ringbuffer->hour_start = this_hour;
   }
 

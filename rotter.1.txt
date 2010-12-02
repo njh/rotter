@@ -28,10 +28,13 @@ a single directory or create a directory structure:
   hierarchy: /root_directory/YYYY/MM/DD/HH/archive.suffix
   combo: /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix
   dailydir: /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH.suffix
+  accurate: /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH-mm-ss-uu.suffix
 
 
-The advantage of using a folder hierarchy is that you can store related
-files in the hour's directory.
+The advantage of using a folder hierarchy is that you can store related 
+files in the hour's directory. The "accurate" structure stores the
+start time of the hourly file to an accuracy of one hundredth of a
+second.
 
 
 OPTIONS

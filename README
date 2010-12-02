@@ -15,16 +15,19 @@ a recording of all their output. Rotter runs continuously, writing to
 a new file every hour. 
 
 
-Rotter can output files in two different strutures, either all files in a 
-single directory or create a directory structure:
+Rotter can output files in various different structures, either all files 
+in a single directory or create a directory structure:
 
 flat: /root_directory/YYYY-MM-DD-HH.suffix
 hierarchy: /root_directory/YYYY/MM/DD/HH/archive.suffix
 combo: /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix
 dailydir: /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH.suffix
+accurate: /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH-mm-ss-uu.suffix
 
-The advantage of using a folder hierarchy is that you can store related 
-files in the hour's directory.
+The advantage of using a folder hierarchy is that you can store related
+files in the hour's directory. The "accurate" structure stores the
+start time of the hourly file to an accuracy of one hundredth of a
+second.
 
 
 Usage
@@ -49,6 +52,8 @@ Supported file layouts:
    flat          /root_directory/YYYY-MM-DD-HH.suffix
    hierarchy     /root_directory/YYYY/MM/DD/HH/archive.suffix
    combo         /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix
+   dailydir      /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH.suffix
+   accurate      /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH-mm-ss-uu.suffix
 
 Supported audio output formats:
    mp3           MPEG Audio Layer 3   [Default]
