@@ -55,7 +55,6 @@ char *root_directory = NULL;      // Root directory of archives
 int delete_hours = DEFAULT_DELETE_HOURS;  // Delete files after this many hours
 
 RotterRunState rotter_run_state = ROTTER_STATE_RUNNING;
-pid_t delete_child_pid = 0;     // PID of process deleting old files
 encoder_funcs_t* encoder = NULL;
 
 jack_default_audio_sample_t *tmp_buffer[2] = {NULL,NULL};
@@ -421,16 +420,23 @@ static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
   }
 }
 
+static int rotter_close_file(rotter_ringbuffer_t *ringbuffer)
+{
+  encoder->close(ringbuffer->file_handle, ringbuffer->hour_start);
+  ringbuffer->close_file = 0;
+  ringbuffer->file_handle = NULL;
+  return 0;
+}
 
 static int rotter_process_audio()
 {
   int total_samples = 0;
+  int result;
   int b;
 
   for(b=0; b<2; b++) {
     rotter_ringbuffer_t *ringbuffer = ringbuffers[b];
     int samples = 0;
-    int result;
 
     // Has there been a ringbuffer overflow?
     if (ringbuffer->overflow) {
@@ -440,57 +446,34 @@ static int rotter_process_audio()
 
     // Read some audio from the buffer
     samples = rotter_read_from_ringbuffer( ringbuffer, output_format->samples_per_frame );
-    if (samples < 1) {
-      continue;
-    } else {
+    if (samples > 0) {
       total_samples += samples;
-    }
 
-    // Open a new file?
-    if (ringbuffer->file_handle == NULL) {
-      rotter_debug("Going to open new file for ringbuffer %c.", b==0 ? 'A':'B');
-      result = rotter_open_file(ringbuffer);
+      // Open a new file?
+      if (ringbuffer->file_handle == NULL) {
+        rotter_debug("Going to open new file for ringbuffer %c.", b==0 ? 'A':'B');
+        result = rotter_open_file(ringbuffer);
+        if (result) {
+          rotter_error("Failed to open file.");
+          break;
+        }
+      }
+
+      // Write some audio to disk
+      result = encoder->write(ringbuffer->file_handle, samples, tmp_buffer);
       if (result) {
-        rotter_error("Failed to open file.");
+        rotter_error("An error occured while trying to write audio to disk.");
         break;
       }
     }
 
-    // Write some audio to disk
-    result = encoder->write(ringbuffer->file_handle, samples, tmp_buffer);
-    if (result) {
-      rotter_error("An error occured while trying to write audio to disk.");
-      break;
-    }
-
     // Close the old file
     if (ringbuffer->close_file) {
-      encoder->close(ringbuffer->file_handle, ringbuffer->hour_start);
-      ringbuffer->close_file = 0;
-      ringbuffer->file_handle = NULL;
+      rotter_close_file(ringbuffer);
 
       // Delete files older delete_hours
-      if (delete_hours>0) {
-        if (delete_child_pid) {
-          rotter_error( "Not deleting files: the last deletion process has not finished." );
-        } else {
-          delete_child_pid = delete_files( root_directory, delete_hours );
-        }
-      }
-    }
-
-    // Has a child process finished?
-    if (delete_child_pid) {
-      int status = 0;
-      pid_t pid = waitpid( delete_child_pid, &status, WNOHANG );
-      if (pid) {
-        delete_child_pid = 0;
-        if (status) {
-          rotter_error( "File deletion child-process exited with status %d", status );
-        } else {
-          rotter_debug( "File deletion child-process has finished." );
-        }
-      }
+      if (delete_hours>0)
+        deletefiles( root_directory, delete_hours );
     }
 
   } // for(b=0..2)
@@ -545,7 +528,7 @@ static int deinit_ringbuffers()
       }
 
       if (ringbuffers[b]->file_handle) {
-        encoder->close(ringbuffers[b]->file_handle, ringbuffers[b]->hour_start);
+        rotter_close_file(ringbuffers[b]);
         ringbuffers[b]->file_handle = NULL;
       }
 
@@ -776,6 +759,8 @@ int main(int argc, char *argv[])
     if (samples_processed <= 0) {
       usleep(sleep_time * 1000000);
     }
+
+    deletefiles_cleanup_child();
   }
 
 

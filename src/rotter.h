@@ -182,7 +182,8 @@ void* open_mpegaudio_file(const char* filepath);
 int close_mpegaudio_file(void* fh, time_t file_start);
 
 // In deletefiles.c
-int delete_files( const char* dir, int hours );
+int deletefiles( const char* dir, int hours );
+void deletefiles_cleanup_child();
 
 
 #endif

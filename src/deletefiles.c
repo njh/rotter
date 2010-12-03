@@ -36,6 +36,9 @@
 #include "rotter.h"
 #include "config.h"
 
+pid_t delete_child_pid = 0;     // PID of process deleting old files
+
+
 static void delete_file( const char* filepath, dev_t device, time_t timestamp )
 {
   struct stat sb;
@@ -75,7 +78,7 @@ static dev_t get_file_device( const char* filepath )
 }
 
 
-static void delete_files_in_dir( const char* dirpath, dev_t device, time_t timestamp )
+static void deletefiles_in_dir( const char* dirpath, dev_t device, time_t timestamp )
 {
   DIR *dirp = opendir(dirpath);
   struct dirent *dp;
@@ -108,7 +111,7 @@ static void delete_files_in_dir( const char* dirpath, dev_t device, time_t times
     if (dp->d_type == DT_DIR) {
 
       // Process sub directory
-      delete_files_in_dir( newpath, device, timestamp );
+      deletefiles_in_dir( newpath, device, timestamp );
       delete_file( newpath, device, timestamp );
 
     } else if (dp->d_type == DT_REG) {
@@ -128,24 +131,29 @@ static void delete_files_in_dir( const char* dirpath, dev_t device, time_t times
 
 
 // Delete files older than 'hours'
-int delete_files( const char* dirpath, int hours )
+int deletefiles( const char* dirpath, int hours )
 {
   int old_niceness, new_niceness = 15;
   time_t now = time(NULL);
-  pid_t child_pid = 0;
   dev_t device = get_file_device( dirpath );
 
+  if (hours<=0)
+    return 0;
+
+  if (delete_child_pid) {
+    rotter_error( "Not deleting files: the last deletion process has not finished." );
+    return delete_child_pid;
+  }
 
   rotter_info( "Deleting files older than %d hours in %s.", hours, dirpath );
 
-
   // Fork a new process
-  child_pid = fork();
-  if (child_pid>0) {
+  delete_child_pid = fork();
+  if (delete_child_pid>0) {
     // Parent is here
-    rotter_debug( "Forked new proccess to delete files (pid=%d).", child_pid );
-    return child_pid;
-  } else if (child_pid<0) {
+    rotter_debug( "Forked new proccess to delete files (pid=%d).", delete_child_pid );
+    return delete_child_pid;
+  } else if (delete_child_pid<0) {
     rotter_error( "Warning: fork failed: %s", strerror(errno) );
     return 0;
   }
@@ -155,12 +163,27 @@ int delete_files( const char* dirpath, int hours )
   old_niceness = nice( new_niceness );
   rotter_debug( "Changed child proccess niceless from %d to %d.", old_niceness, new_niceness );
 
-
   // Recursively process directories
-  delete_files_in_dir( dirpath, device, now-(hours*3600) );
+  deletefiles_in_dir( dirpath, device, now-(hours*3600) );
 
   // End of child process
   exit(0);
 }
 
 
+void deletefiles_cleanup_child()
+{
+  // Has a child process finished?
+  if (delete_child_pid) {
+    int status = 0;
+    pid_t pid = waitpid( delete_child_pid, &status, WNOHANG );
+    if (pid) {
+      delete_child_pid = 0;
+      if (status) {
+        rotter_error( "File deletion child-process exited with status %d", status );
+      } else {
+        rotter_debug( "File deletion child-process has finished." );
+      }
+    }
+  }
+}
