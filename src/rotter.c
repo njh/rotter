@@ -36,7 +36,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 
 #include "config.h"
 #include "rotter.h"
