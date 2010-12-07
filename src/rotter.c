@@ -59,7 +59,6 @@ encoder_funcs_t* encoder = NULL;
 
 jack_default_audio_sample_t *tmp_buffer[2] = {NULL,NULL};
 rotter_ringbuffer_t *ringbuffers[2] = {NULL,NULL};
-rotter_ringbuffer_t *active_ringbuffer = NULL;
 
 output_format_t *output_format = NULL;
 output_format_t format_list [] =
@@ -371,7 +370,8 @@ static size_t rotter_read_from_ringbuffer(rotter_ringbuffer_t *ringbuffer, size_
     // Copy frames from ring buffer to temporary buffer
     bytes_read = jack_ringbuffer_read( ringbuffer->buffer[c], (char*)tmp_buffer[c], desired_bytes);
     if (bytes_read != desired_bytes) {
-      rotter_fatal( "Failed to read desired number of bytes from ringbuffer channel %d.", c);
+      rotter_fatal( "Failed to read desired number of bytes from ringbuffer %c channel %d.", ringbuffer->label, c);
+      return 0;
     }
   }
 
@@ -408,7 +408,7 @@ static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
     return 1;
 
   // Open the new file
-  rotter_info( "Opening new archive file: %s", filepath );
+  rotter_info( "Opening new archive file for ringbuffer %c: %s", ringbuffer->label, filepath );
   ringbuffer->file_handle = encoder->open(filepath);
   free(filepath);
 
@@ -422,6 +422,7 @@ static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
 
 static int rotter_close_file(rotter_ringbuffer_t *ringbuffer)
 {
+  rotter_info( "Closing file for ringbuffer %c.", ringbuffer->label);
   encoder->close(ringbuffer->file_handle, ringbuffer->hour_start);
   ringbuffer->close_file = 0;
   ringbuffer->file_handle = NULL;
@@ -440,7 +441,7 @@ static int rotter_process_audio()
 
     // Has there been a ringbuffer overflow?
     if (ringbuffer->overflow) {
-      rotter_error( "Ringbuffer %c overflowed while writing audio.", b==0 ? 'A':'B');
+      rotter_error( "Ringbuffer %c overflowed while writing audio.", ringbuffer->label);
       ringbuffer->overflow = 0;
     }
 
@@ -451,7 +452,6 @@ static int rotter_process_audio()
 
       // Open a new file?
       if (ringbuffer->file_handle == NULL) {
-        rotter_debug("Going to open new file for ringbuffer %c.", b==0 ? 'A':'B');
         result = rotter_open_file(ringbuffer);
         if (result) {
           rotter_error("Failed to open file.");
@@ -490,12 +490,14 @@ static int init_ringbuffers()
   rotter_debug("Size of the ring buffers is %2.2f seconds (%d bytes).", rb_duration, (int)ringbuffer_size );
 
   for(b=0; b<2; b++) {
+    char label = ('A' + b);
     ringbuffers[b] = malloc(sizeof(rotter_ringbuffer_t));
     if (!ringbuffers[b]) {
-      rotter_fatal("Cannot allocate memory for ringbuffer structure %d.", b);
+      rotter_fatal("Cannot allocate memory for ringbuffer %c structure.", label);
       return -1;
     }
 
+    ringbuffers[b]->label = label;
     ringbuffers[b]->hour_start = 0;
     ringbuffers[b]->file_handle = NULL;
     ringbuffers[b]->overflow = 0;
@@ -506,7 +508,7 @@ static int init_ringbuffers()
     for(c=0; c<channels; c++) {
       ringbuffers[b]->buffer[c] = jack_ringbuffer_create( ringbuffer_size );
       if (!ringbuffers[b]->buffer[c]) {
-        rotter_fatal("Cannot create ringbuffer buffer %d,%d.", b,c);
+        rotter_fatal("Cannot create ringbuffer buffer %c%d.", label, c);
         return -1;
       }
     }

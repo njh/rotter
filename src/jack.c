@@ -41,7 +41,7 @@
 // ------- Globals -------
 jack_port_t *inport[2] = {NULL, NULL};
 jack_client_t *client = NULL;
-
+rotter_ringbuffer_t *active_ringbuffer = NULL;
 
 
 // Returns unix timestamp for the start of this hour
@@ -80,6 +80,7 @@ static int write_to_ringbuffer(rotter_ringbuffer_t *rb, jack_nframes_t nframes)
 
   for (c=0; c < channels; c++)
   {
+    // FIXME: seek the correct position in buffer
     char *buf  = (char*)jack_port_get_buffer(inport[c], nframes);
     size_t len = jack_ringbuffer_write(rb->buffer[c], buf, to_write);
     if (len < to_write) {

@@ -111,6 +111,7 @@ typedef enum {
 
 typedef struct rotter_ringbuffer_s
 {
+    char label;                      // The name/label of the ringbuffer (for debugging)
     time_t hour_start;               // The time (in seconds) that the hour started at
     struct timeval file_start;       // The time that the file started at (with micro-second accuracy)
     void* file_handle;
@@ -153,7 +154,6 @@ extern jack_client_t *client;
 extern int channels;        // Number of input channels
 extern RotterRunState rotter_run_state;
 extern rotter_ringbuffer_t *ringbuffers[2];
-extern rotter_ringbuffer_t *active_ringbuffer;
 
 
 
