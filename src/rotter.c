@@ -468,7 +468,7 @@ static int rotter_process_audio()
     }
 
     // Close the old file
-    if (ringbuffer->close_file) {
+    if (samples <= 0 && ringbuffer->close_file) {
       rotter_close_file(ringbuffer);
 
       // Delete files older delete_hours
