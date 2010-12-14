@@ -113,29 +113,34 @@ int callback_jack(jack_nframes_t nframes, void *arg)
 
   // FIXME: this won't work if rotter is started *just* before the hour
   if (active_ringbuffer) {
+    unsigned int duration;
     int result;
-    int duration;
 
     // Calculate the number of frames until we have a whole number of seconds
-    // FIXME: simplify calculation?
-    frames_until_whole_second = jack_get_sample_rate( client ) *
-                                   ((float)(1000000 - tv.tv_usec) / 1000000);
-    if (frames_until_whole_second > nframes)
-      frames_until_whole_second = nframes;
+    // FIXME: what if the callback buffer contains over 1 second of audio?
+    frames_until_whole_second = ceil(jack_get_sample_rate( client ) *
+                                ((double)(1000000 - tv.tv_usec) / 1000000));
 
-    result = write_to_ringbuffer(active_ringbuffer, frames_until_whole_second);
-    if (result)
-      return result;
+    if (frames_until_whole_second < nframes) {
+      result = write_to_ringbuffer(active_ringbuffer, frames_until_whole_second);
+      if (result)
+        return result;
 
-    // Calculate the duration of the audio that we wrote
-    // and add it on to the current time
-    // FIXME: simplify calculation?
-    duration = (1000000 * (frames_until_whole_second+1)) / jack_get_sample_rate( client );
-    if (tv.tv_usec + duration >= 1000000) {
+      // Calculate the duration of the audio that we wrote
+      // and add it on to the current time
+      duration = ((double)frames_until_whole_second /
+                 jack_get_sample_rate( client )) * 1000000;
       tv.tv_usec += (duration - 1000000);
       tv.tv_sec += 1;
+
+      nframes -= frames_until_whole_second;
+
+      printf("tv=%d.%6.6d, duration=%d, frames_until_whole_second=%d\n",
+        (int)tv.tv_sec, (int)tv.tv_usec,
+        (int)duration, (int)frames_until_whole_second);
     }
   }
+
 
   // Time to swap ring buffers, if we are now in a new hour period
   this_hour = start_of_hour(tv.tv_sec);
@@ -153,7 +158,7 @@ int callback_jack(jack_nframes_t nframes, void *arg)
   }
 
   // Finally, write any frames after the 1 second boundary
-  return write_to_ringbuffer(active_ringbuffer, nframes - frames_until_whole_second);
+  return write_to_ringbuffer(active_ringbuffer, nframes);
 }
 
 
