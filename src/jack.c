@@ -60,7 +60,8 @@ static time_t start_of_hour(time_t now)
 }
 
 
-static int write_to_ringbuffer(rotter_ringbuffer_t *rb, jack_nframes_t nframes)
+static int write_to_ringbuffer(rotter_ringbuffer_t *rb, jack_nframes_t start,
+                               jack_nframes_t nframes)
 {
   size_t to_write = sizeof(jack_default_audio_sample_t) * nframes;
   unsigned int c;
@@ -80,9 +81,10 @@ static int write_to_ringbuffer(rotter_ringbuffer_t *rb, jack_nframes_t nframes)
 
   for (c=0; c < channels; c++)
   {
-    // FIXME: seek the correct position in buffer
-    char *buf  = (char*)jack_port_get_buffer(inport[c], nframes);
-    size_t len = jack_ringbuffer_write(rb->buffer[c], buf, to_write);
+    jack_default_audio_sample_t *buf = jack_port_get_buffer(inport[c], nframes);
+    size_t len = 0;
+
+    len = jack_ringbuffer_write(rb->buffer[c], (char*)&buf[start], to_write);
     if (len < to_write) {
       rotter_fatal("Failed to write to ring buffer.");
       return 1;
@@ -102,6 +104,7 @@ static
 int callback_jack(jack_nframes_t nframes, void *arg)
 {
   jack_nframes_t frames_until_whole_second = 0;
+  jack_nframes_t read_pos = 0;
   time_t this_hour;
   struct timeval tv;
 
@@ -122,7 +125,7 @@ int callback_jack(jack_nframes_t nframes, void *arg)
                                 ((double)(1000000 - tv.tv_usec) / 1000000));
 
     if (frames_until_whole_second < nframes) {
-      result = write_to_ringbuffer(active_ringbuffer, frames_until_whole_second);
+      result = write_to_ringbuffer(active_ringbuffer, read_pos, frames_until_whole_second);
       if (result)
         return result;
 
@@ -134,10 +137,7 @@ int callback_jack(jack_nframes_t nframes, void *arg)
       tv.tv_sec += 1;
 
       nframes -= frames_until_whole_second;
-
-      printf("tv=%d.%6.6d, duration=%d, frames_until_whole_second=%d\n",
-        (int)tv.tv_sec, (int)tv.tv_usec,
-        (int)duration, (int)frames_until_whole_second);
+      read_pos += frames_until_whole_second;
     }
   }
 
@@ -158,7 +158,7 @@ int callback_jack(jack_nframes_t nframes, void *arg)
   }
 
   // Finally, write any frames after the 1 second boundary
-  return write_to_ringbuffer(active_ringbuffer, nframes);
+  return write_to_ringbuffer(active_ringbuffer, read_pos, nframes);
 }
 
 
