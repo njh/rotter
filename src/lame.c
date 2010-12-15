@@ -91,16 +91,17 @@ static int write_lame(void *fh, size_t sample_count, jack_default_audio_sample_t
   bytes_encoded = lame_encode_buffer( lame_opts,
             i16_buffer[0], i16_buffer[1],
             sample_count, mpeg_buffer, WRITE_BUFFER_SIZE );
-  if (bytes_encoded<=0) {
-    rotter_error( "Warning: failed to encode audio: %d", bytes_encoded);
-    return -1;
-  }
 
-  // Write it to disk
-  bytes_written = fwrite( mpeg_buffer, 1, bytes_encoded, file);
-  if (bytes_written != bytes_encoded) {
-    rotter_error( "Warning: failed to write encoded audio to disk: %s", strerror(errno) );
+  if (bytes_encoded<0) {
+    rotter_fatal( "Error: while encoding audio.");
     return -1;
+  } else if (bytes_encoded>0) {
+    // Write it to disk
+    bytes_written = fwrite(mpeg_buffer, 1, bytes_encoded, file);
+    if (bytes_written != bytes_encoded) {
+      rotter_error( "Warning: failed to write encoded audio to disk: %s", strerror(errno) );
+      return -1;
+    }
   }
 
   // Success

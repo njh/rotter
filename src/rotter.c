@@ -354,22 +354,27 @@ static char * time_to_filepath_accurate( struct tm *tm, unsigned int usec, const
 static size_t rotter_read_from_ringbuffer(rotter_ringbuffer_t *ringbuffer, size_t desired_frames)
 {
   size_t desired_bytes = desired_frames * sizeof(jack_default_audio_sample_t);
-  int c, bytes_read=0;
+  size_t available_bytes = 0;
+  int c, bytes_read = 0;
 
   // Is there enough in the ring buffers?
   for (c=0; c<channels; c++) {
-    if (jack_ringbuffer_read_space( ringbuffer->buffer[c] ) < desired_bytes) {
+    available_bytes = jack_ringbuffer_read_space( ringbuffer->buffer[c] );
+    if (available_bytes <= 0) {
       // Try again later
       return 0;
     }
   }
 
+  if (available_bytes > desired_bytes)
+    available_bytes = desired_bytes;
+
   // Get the audio out of the ring buffer
   for (c=0; c<channels; c++) {
     // Copy frames from ring buffer to temporary buffer
-    bytes_read = jack_ringbuffer_read( ringbuffer->buffer[c], (char*)tmp_buffer[c], desired_bytes);
-    if (bytes_read != desired_bytes) {
-      rotter_fatal( "Failed to read desired number of bytes from ringbuffer %c channel %d.", ringbuffer->label, c);
+    bytes_read = jack_ringbuffer_read( ringbuffer->buffer[c], (char*)tmp_buffer[c], available_bytes);
+    if (bytes_read != available_bytes) {
+      rotter_fatal( "Failed to read from ringbuffer %c channel %d.", ringbuffer->label, c);
       return 0;
     }
   }
