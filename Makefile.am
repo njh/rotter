@@ -9,4 +9,4 @@ rotter.1: rotter.1.txt
 
 SUBDIRS = src
 
-EXTRA_DIST = $(man_MANS) autogen.sh TODO rotter.1.txt
+EXTRA_DIST = $(man_MANS) autogen.sh rotter.1.txt

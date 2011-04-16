@@ -22,7 +22,6 @@ libtool
 Makefile
 Makefile.in
 stamp-h1
-TODO
 
 src/rotter
 src/config.h
