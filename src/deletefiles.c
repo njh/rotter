@@ -57,7 +57,7 @@ static void delete_file( const char* filepath, dev_t device, time_t timestamp )
   if (sb.st_mtime < timestamp) {
     rotter_debug( "Deleting file: %s", filepath );
 
-    if (unlink(filepath)) {
+    if (unlink(filepath) && rmdir(filepath)) {
       rotter_error( "Warning: failed to delete file: %s", filepath );
       return;
     }
