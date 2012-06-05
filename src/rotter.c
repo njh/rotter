@@ -600,7 +600,7 @@ static void usage()
   printf("   -c <channels> Number of channels\n");
   printf("   -n <name>     Name for this JACK client\n");
   printf("   -N <filename> Name for archive files (default 'archive')\n");
-  printf("   -p <secs>     Duration of each archive file (in seconds, default %d)\n", DEFAULT_ARCHIVE_PERIOD_SECONDS);
+  printf("   -p <secs>     Period of each archive file (in seconds, default %d)\n", DEFAULT_ARCHIVE_PERIOD_SECONDS);
   printf("   -d <hours>    Delete files in directory older than this\n");
   printf("   -R <secs>     Length of the ring buffer (in seconds)\n");
   printf("   -L <layout>   File layout (default 'hierarchy')\n");
