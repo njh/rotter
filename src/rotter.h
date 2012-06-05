@@ -55,6 +55,7 @@
 #define DEFAULT_BITRATE       (160)
 #define DEFAULT_CHANNELS      (2)
 #define DEFAULT_DELETE_HOURS  (0)
+#define DEFAULT_ARCHIVE_PERIOD_SECONDS (3600)
 
 
 #ifndef LAME_SAMPLES_PER_FRAME
@@ -154,6 +155,7 @@ extern jack_client_t *client;
 extern int channels;        // Number of input channels
 extern RotterRunState rotter_run_state;
 extern rotter_ringbuffer_t *ringbuffers[2];
+extern long archive_period_seconds; 
 
 
 

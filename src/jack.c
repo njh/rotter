@@ -43,20 +43,12 @@ jack_port_t *inport[2] = {NULL, NULL};
 jack_client_t *client = NULL;
 rotter_ringbuffer_t *active_ringbuffer = NULL;
 
-
-// Returns unix timestamp for the start of this hour
+// Given unix timestamp for current time
+// Returns unix timestamp for the start of this archive period
+// relies on global archive_period_seconds variable
 static time_t start_of_hour(time_t now)
 {
-  struct tm tm;
-
-  // Break down the time
-  localtime_r( &now, &tm );
-
-  // Set minutes and seconds to 0
-  tm.tm_min = 0;
-  tm.tm_sec = 0;
-
-  return mktime( &tm );
+  return (floor(now / archive_period_seconds) * archive_period_seconds);
 }
 
 
