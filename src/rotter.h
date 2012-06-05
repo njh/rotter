@@ -113,7 +113,7 @@ typedef enum {
 typedef struct rotter_ringbuffer_s
 {
     char label;                      // The name/label of the ringbuffer (for debugging)
-    time_t hour_start;               // The time (in seconds) that the hour started at
+    time_t period_start;             // The time (in seconds) that the archive period started at
     struct timeval file_start;       // The time that the file started at (with micro-second accuracy)
     void* file_handle;
     jack_ringbuffer_t *buffer[2];
