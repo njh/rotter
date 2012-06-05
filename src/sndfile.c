@@ -59,7 +59,7 @@ static int write_sndfile(void *fh, size_t sample_count, jack_default_audio_sampl
   int i,c;
 
   // Interleave the audio into another buffer
-  interleaved_buffer = (jack_default_audio_sample_t*)realloc(interleaved_buffer, sample_count*channels );
+  interleaved_buffer = (jack_default_audio_sample_t*)realloc(interleaved_buffer, sample_count * channels * sizeof(jack_default_audio_sample_t));
   if (!interleaved_buffer) rotter_fatal( "realloc on interleaved_buffer failed" );
   for (c=0; c<channels; c++)
   {
