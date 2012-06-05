@@ -59,7 +59,7 @@ static int write_sndfile(void *fh, size_t sample_count, jack_default_audio_sampl
   int i,c;
 
   // Interleave the audio into another buffer
-  interleaved_buffer = (jack_default_audio_sample_t*)realloc(interleaved_buffer, sample_count*channels );
+  interleaved_buffer = (jack_default_audio_sample_t*)realloc(interleaved_buffer, sample_count * channels * sizeof(jack_default_audio_sample_t));
   if (!interleaved_buffer) rotter_fatal( "realloc on interleaved_buffer failed" );
   for (c=0; c<channels; c++)
   {
@@ -187,7 +187,7 @@ encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrat
   // Allocate memory for callback functions
   funcs = calloc( 1, sizeof(encoder_funcs_t) );
   if ( funcs==NULL ) {
-    rotter_error( "Failed to allocate memery for encoder callback functions structure." );
+    rotter_error( "Failed to allocate memory for encoder callback functions structure." );
     return NULL;
   }
 

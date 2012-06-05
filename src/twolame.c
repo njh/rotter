@@ -141,14 +141,14 @@ encoder_funcs_t* init_twolame( output_format_t* format, int channels, int bitrat
   // Allocate memory for encoded audio
   mpeg_buffer = malloc( 1.25*TWOLAME_SAMPLES_PER_FRAME + 7200 );
   if ( mpeg_buffer==NULL ) {
-    rotter_error( "Failed to allocate memery for encoded audio." );
+    rotter_error( "Failed to allocate memory for encoded audio." );
     return NULL;
   }
 
   // Allocate memory for callback functions
   funcs = calloc( 1, sizeof(encoder_funcs_t) );
   if ( funcs==NULL ) {
-    rotter_error( "Failed to allocate memery for encoder callback functions structure." );
+    rotter_error( "Failed to allocate memory for encoder callback functions structure." );
     return NULL;
   }
 
