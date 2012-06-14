@@ -647,6 +647,9 @@ static void usage()
   printf("   combo         /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix\n");
   printf("   dailydir      /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH.suffix\n");
   printf("   accurate      /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH-mm-ss-uu.suffix\n");
+  printf("\n");
+  printf("A custom file layout may be specified using a strftime-style format string,\n");
+  printf("for example: -L \"%%Y-%%m-%%d/studio-1/%%H%%M.flac\"\n");
 
   // Display the available audio output formats
   printf("\nSupported audio output formats:\n");
