@@ -20,16 +20,17 @@ It was designed for use by radio stations, who are legally required
 to keep a recording of all their output. Rotter runs continuously,
 writing to a new file every hour.
 
-Rotter can output files in two different strutures, either all files in
-a single directory or create a directory structure:
+Rotter can output files in different layouts, either all files in
+a single directory, or creating a directory structure as required.
 
+Custom file layouts may be specified, using a strftime-style format
+string, or one of the following predefined file layouts:
 
   flat: /root_directory/YYYY-MM-DD-HH.suffix
   hierarchy: /root_directory/YYYY/MM/DD/HH/archive.suffix
   combo: /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix
   dailydir: /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH.suffix
   accurate: /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH-mm-ss-uu.suffix
-
 
 The advantage of using a folder hierarchy is that you can store related 
 files in the hour's directory. The "accurate" structure stores the
@@ -74,7 +75,14 @@ OPTIONS
 
 -L <layout>::
         Choose a file layout option for the archive files created.
-        See above for a list.
+        See above for a list of pre-defined layout formats, or specify a custom
+        layout using strftime format specifiers, for example:
+
+        -L "%Y-%m-%d/studio-1/%H%M.flac"
+        will generate files like: [root]/2012-06-05/studio-1/1300.flac
+
+        See your system's strftime documentation for a full list of available
+        format specifiers (man strftime).
 
 -j::
         By default rotter will automatically try and start jackd if it
