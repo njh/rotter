@@ -338,14 +338,9 @@ static char * time_to_filepath_accurate( struct tm *tm, unsigned int usec, const
 
 
   // Create the full file path
-  if (archive_name) {
-    snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, archive_name, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
-  } else {
-    snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%4.4d-%2.2d-%2.2d-%2.2d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour,
-          tm->tm_min, tm->tm_sec, (int)(usec / 10000), suffix );
-  }
+  snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%4.4d-%2.2d-%2.2d-%2.2d-%2.2d-%2.2d-%2.2d.%s",
+        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour,
+        tm->tm_min, tm->tm_sec, (int)(usec / 10000), suffix );
 
   return filepath;
 }
