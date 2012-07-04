@@ -111,19 +111,41 @@ static int close_sndfile(void *fh, time_t file_start)
 static void* open_sndfile(const char* filepath)
 {
   SNDFILE *sndfile = NULL;
+  int read_write_mode = 1;
   int result = 0;
 
   rotter_debug("Opening libsndfile output file: %s", filepath);
   sndfile = sf_open( filepath, SFM_RDWR, &sfinfo );
+  
+  // Some output formats, like flac and vorbis, do not support read/write mode
+  // There is no stable way to trap this specific error in the libsndfile public API
+  // so if we fail to open the file, try once more in write-only mode. 
+  //
+  // Using fallback, rather than hard-coding the current capabilities of each format, so that
+  // we will automatically benefit if libsndfile is extended to provide read/write mode for
+  // more formats.
+  //
+  // In write-only mode, we cannot append to existing files, so their contents, if they exist
+  // will be clobbered, but this is the original behaviour of rotter, so isn't a regression.
+  if (sndfile==NULL) {
+    rotter_info( "Failed to open output file in read/write mode, so trying write-only" );
+    read_write_mode = 0;
+    sndfile = sf_open( filepath, SFM_WRITE, &sfinfo );
+  }
+ 
   if (sndfile==NULL) {
     rotter_error( "Failed to open output file: %s", sf_strerror(NULL) );
     return NULL;
   }
 
   // Seek to the end of the file, so that we don't overwrite any existing audio
-  result = sf_seek(sndfile, 0, SEEK_END);
-  if (result < 0) {
-    rotter_error( "Failed to seek to end of file before writing: %s", sf_strerror(sndfile) );
+  // We can only do this if the file is opened in read/write mode. Not all formats
+  // support this.
+  if (read_write_mode) {
+    result = sf_seek(sndfile, 0, SEEK_END);
+    if (result < 0) {
+      rotter_error( "Failed to seek to end of file before writing: %s", sf_strerror(sndfile) );
+    }
   }
 
   return (void*)sndfile;
