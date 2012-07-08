@@ -21,6 +21,7 @@ configure
 libtool
 Makefile
 Makefile.in
+rotter.1
 stamp-h1
 
 src/rotter
