@@ -116,7 +116,10 @@ static void deinit_lame()
   int c;
 
   rotter_debug("Shutting down LAME encoder.");
-  lame_close( lame_opts );
+  if (lame_opts) {
+    lame_close(lame_opts);
+    lame_opts = NULL;
+  }
 
   for( c=0; c<2; c++) {
     if (i16_buffer[c]) {
@@ -129,7 +132,6 @@ static void deinit_lame()
     free(mpeg_buffer);
     mpeg_buffer=NULL;
   }
-
 }
 
 
@@ -165,26 +167,31 @@ encoder_funcs_t* init_lame( output_format_t* format, int channels, int bitrate )
 
   if ( 0 > lame_set_num_channels( lame_opts, channels ) ) {
     rotter_error("lame error: failed to set number of channels.");
+    deinit_lame();
     return NULL;
   }
 
   if ( 0 > lame_set_in_samplerate( lame_opts, jack_get_sample_rate( client ) )) {
     rotter_error("lame error: failed to set input samplerate.");
+    deinit_lame();
     return NULL;
   }
 
   if ( 0 > lame_set_out_samplerate( lame_opts, jack_get_sample_rate( client ) )) {
     rotter_error("lame error: failed to set output samplerate.");
+    deinit_lame();
     return NULL;
   }
 
   if ( 0 > lame_set_brate( lame_opts, bitrate) ) {
     rotter_error("lame error: failed to set bitrate.");
+    deinit_lame();
     return NULL;
   }
 
   if ( 0 > lame_init_params( lame_opts ) ) {
     rotter_error("lame error: failed to initialize parameters.");
+    deinit_lame();
     return NULL;
   }
 
@@ -202,6 +209,7 @@ encoder_funcs_t* init_lame( output_format_t* format, int channels, int bitrate )
   mpeg_buffer = malloc( 1.25*SAMPLES_PER_FRAME + 7200 );
   if ( mpeg_buffer==NULL ) {
     rotter_error( "Failed to allocate memory for encoded audio." );
+    deinit_lame();
     return NULL;
   }
 
@@ -209,16 +217,15 @@ encoder_funcs_t* init_lame( output_format_t* format, int channels, int bitrate )
   funcs = calloc( 1, sizeof(encoder_funcs_t) );
   if ( funcs==NULL ) {
     rotter_error( "Failed to allocate memory for encoder callback functions structure." );
+    deinit_lame();
     return NULL;
   }
-
 
   funcs->file_suffix = "mp3";
   funcs->open = open_mpegaudio_file;
   funcs->close = close_mpegaudio_file;
   funcs->write = write_lame;
   funcs->deinit = deinit_lame;
-
 
   return funcs;
 }

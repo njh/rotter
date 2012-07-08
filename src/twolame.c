@@ -44,7 +44,7 @@
 
 // ------ Globals ---------
 static twolame_options *twolame_opts = NULL;
-static unsigned char *mpeg_buffer=NULL;
+static unsigned char *mpeg_buffer = NULL;
 
 
 
@@ -83,13 +83,15 @@ static int write_twolame(void *fh, size_t sample_count, jack_default_audio_sampl
 static void deinit_twolame()
 {
   rotter_debug("Shutting down TwoLAME encoder.");
-  twolame_close( &twolame_opts );
+  if (twolame_opts) {
+    twolame_close( &twolame_opts );
+    twolame_opts=NULL;
+  }
 
   if (mpeg_buffer) {
     free(mpeg_buffer);
     mpeg_buffer=NULL;
   }
-
 }
 
 
@@ -105,26 +107,31 @@ encoder_funcs_t* init_twolame( output_format_t* format, int channels, int bitrat
 
   if ( 0 > twolame_set_num_channels( twolame_opts, channels ) ) {
     rotter_error("TwoLAME error: failed to set number of channels.");
+    deinit_twolame();
     return NULL;
   }
 
   if ( 0 > twolame_set_in_samplerate( twolame_opts, jack_get_sample_rate( client ) )) {
     rotter_error("TwoLAME error: failed to set input samplerate.");
+    deinit_twolame();
     return NULL;
   }
 
   if ( 0 > twolame_set_out_samplerate( twolame_opts, jack_get_sample_rate( client ) )) {
     rotter_error("TwoLAME error: failed to set output samplerate.");
+    deinit_twolame();
     return NULL;
   }
 
   if ( 0 > twolame_set_brate( twolame_opts, bitrate) ) {
     rotter_error("TwoLAME error: failed to set bitrate.");
+    deinit_twolame();
     return NULL;
   }
 
   if ( 0 > twolame_init_params( twolame_opts ) ) {
     rotter_error("TwoLAME error: failed to initialize parameters.");
+    deinit_twolame();
     return NULL;
   }
 
@@ -142,6 +149,7 @@ encoder_funcs_t* init_twolame( output_format_t* format, int channels, int bitrat
   mpeg_buffer = malloc( 1.25*TWOLAME_SAMPLES_PER_FRAME + 7200 );
   if ( mpeg_buffer==NULL ) {
     rotter_error( "Failed to allocate memory for encoded audio." );
+    deinit_twolame();
     return NULL;
   }
 
@@ -149,9 +157,9 @@ encoder_funcs_t* init_twolame( output_format_t* format, int channels, int bitrat
   funcs = calloc( 1, sizeof(encoder_funcs_t) );
   if ( funcs==NULL ) {
     rotter_error( "Failed to allocate memory for encoder callback functions structure." );
+    deinit_twolame();
     return NULL;
   }
-
 
   funcs->file_suffix = "mp2";
   funcs->open = open_mpegaudio_file;
@@ -159,9 +167,7 @@ encoder_funcs_t* init_twolame( output_format_t* format, int channels, int bitrat
   funcs->write = write_twolame;
   funcs->deinit = deinit_twolame;
 
-
   return funcs;
 }
 
 #endif   // HAVE_TWOLAME
-
