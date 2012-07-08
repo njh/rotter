@@ -18,7 +18,7 @@ DESCRIPTION
 Rotter is a Recording of Transmission / Audio Logger for JACK.
 It was designed for use by radio stations, who are legally required
 to keep a recording of all their output. Rotter runs continuously,
-writing to a new file every hour.
+writing to a new file at regular intervals (by default every hour).
 
 Rotter can output files in different layouts, either all files in
 a single directory, or creating a directory structure as required.
@@ -63,6 +63,12 @@ OPTIONS
 -N <filename>::
         Choose a filename prefix for the archive files created (default 'archive').
 
+-p <secs>::
+        Specify the period of each archive file in seconds. The default is 1 hour
+        (-p 3600). As an example, this can be used to make rotter create a new
+        file at the start of every minute, using -p 60. Take care that the chosen
+        file layout includes sufficient time precision.
+        
 -d <hours>::
         Specifies the number of hours of audio to keep before it is
         deleted. Files are deleted at the start of every hour, based

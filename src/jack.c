@@ -43,20 +43,12 @@ jack_port_t *inport[2] = {NULL, NULL};
 jack_client_t *client = NULL;
 rotter_ringbuffer_t *active_ringbuffer = NULL;
 
-
-// Returns unix timestamp for the start of this hour
-static time_t start_of_hour(time_t now)
+// Given unix timestamp for current time
+// Returns unix timestamp for the start of this archive period
+// relies on global archive_period_seconds variable
+static time_t start_of_period(time_t now)
 {
-  struct tm tm;
-
-  // Break down the time
-  localtime_r( &now, &tm );
-
-  // Set minutes and seconds to 0
-  tm.tm_min = 0;
-  tm.tm_sec = 0;
-
-  return mktime( &tm );
+  return (floor(now / archive_period_seconds) * archive_period_seconds);
 }
 
 
@@ -105,7 +97,7 @@ int callback_jack(jack_nframes_t nframes, void *arg)
 {
   jack_nframes_t frames_until_whole_second = 0;
   jack_nframes_t read_pos = 0;
-  time_t this_hour;
+  time_t this_period;
   struct timeval tv;
 
   // Get the current time
@@ -114,7 +106,7 @@ int callback_jack(jack_nframes_t nframes, void *arg)
     return 1;
   }
 
-  // FIXME: this won't work if rotter is started *just* before the hour
+  // FIXME: this won't work if rotter is started *just* before the archive period
   if (active_ringbuffer) {
     unsigned int duration;
     int result;
@@ -142,9 +134,9 @@ int callback_jack(jack_nframes_t nframes, void *arg)
   }
 
 
-  // Time to swap ring buffers, if we are now in a new hour period
-  this_hour = start_of_hour(tv.tv_sec);
-  if (active_ringbuffer == NULL || active_ringbuffer->hour_start != this_hour) {
+  // Time to swap ring buffers, if we are now in a new archive period
+  this_period = start_of_period(tv.tv_sec);
+  if (active_ringbuffer == NULL || active_ringbuffer->period_start != this_period) {
     if (active_ringbuffer) {
       active_ringbuffer->close_file = 1;
     }
@@ -154,7 +146,7 @@ int callback_jack(jack_nframes_t nframes, void *arg)
       active_ringbuffer = ringbuffers[0];
     }
     active_ringbuffer->file_start = tv;
-    active_ringbuffer->hour_start = this_hour;
+    active_ringbuffer->period_start = this_period;
   }
 
   // Finally, write any frames after the 1 second boundary
