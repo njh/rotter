@@ -52,6 +52,7 @@ int channels = DEFAULT_CHANNELS;    // Number of input channels
 float rb_duration = DEFAULT_RB_LEN;   // Duration of ring buffer
 char *root_directory = NULL;      // Root directory of archives
 int delete_hours = DEFAULT_DELETE_HOURS;  // Delete files after this many hours
+long archive_period_seconds = DEFAULT_ARCHIVE_PERIOD_SECONDS;  // Duration of each archive file
 
 RotterRunState rotter_run_state = ROTTER_STATE_RUNNING;
 encoder_funcs_t* encoder = NULL;
@@ -456,7 +457,7 @@ static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
 static int rotter_close_file(rotter_ringbuffer_t *ringbuffer)
 {
   rotter_info( "Closing file for ringbuffer %c.", ringbuffer->label);
-  encoder->close(ringbuffer->file_handle, ringbuffer->hour_start);
+  encoder->close(ringbuffer->file_handle, ringbuffer->period_start);
   ringbuffer->close_file = 0;
   ringbuffer->file_handle = NULL;
   return 0;
@@ -531,7 +532,7 @@ static int init_ringbuffers()
     }
 
     ringbuffers[b]->label = label;
-    ringbuffers[b]->hour_start = 0;
+    ringbuffers[b]->period_start = 0;
     ringbuffers[b]->file_handle = NULL;
     ringbuffers[b]->overflow = 0;
     ringbuffers[b]->close_file = 0;
@@ -628,6 +629,7 @@ static void usage()
   printf("   -c <channels> Number of channels\n");
   printf("   -n <name>     Name for this JACK client\n");
   printf("   -N <filename> Name for archive files (default 'archive')\n");
+  printf("   -p <secs>     Period of each archive file (in seconds, default %d)\n", DEFAULT_ARCHIVE_PERIOD_SECONDS);
   printf("   -d <hours>    Delete files in directory older than this\n");
   printf("   -R <secs>     Length of the ring buffer (in seconds)\n");
   printf("   -L <layout>   File layout (default 'hierarchy')\n");
@@ -676,13 +678,14 @@ int main(int argc, char *argv[])
   setbuf(stdout, NULL);
 
   // Parse Switches
-  while ((opt = getopt(argc, argv, "al:r:n:N:jf:b:d:c:R:L:uvqh")) != -1) {
+  while ((opt = getopt(argc, argv, "al:r:n:N:p:jf:b:d:c:R:L:uvqh")) != -1) {
     switch (opt) {
       case 'a':  autoconnect = 1; break;
       case 'l':  connect_left = optarg; break;
       case 'r':  connect_right = optarg; break;
       case 'n':  client_name = optarg; break;
       case 'N':  archive_name = optarg; break;
+      case 'p':  archive_period_seconds = atol(optarg); break;
       case 'j':  jack_opt |= JackNoStartServer; break;
       case 'f':  format_name = rotter_str_tolower(optarg); break;
       case 'b':  bitrate = atoi(optarg); break;

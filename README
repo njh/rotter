@@ -12,7 +12,7 @@ What is Rotter ?
 Rotter is a Recording of Transmission / Audio Logger for JACK. It was 
 designed for use by radio stations, who are legally required to keep 
 a recording of all their output. Rotter runs continuously, writing to 
-a new file every hour. 
+a new file every at regular intervals (typically every hour). 
 
 
 Rotter can output files in various different structures, either all files 
@@ -40,6 +40,7 @@ rotter [options] <root_directory>
    -c <channels> Number of channels
    -n <name>     Name for this JACK client
    -N <filename> Name for archive files (default 'archive')
+   -p <secs>     Period of each archive file (in seconds, default 1 hour)
    -d <hours>    Delete files in directory older than this
    -R <secs>     Length of the ring buffer (in seconds)
    -L <layout>   File layout (default 'hierarchy')

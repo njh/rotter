@@ -55,6 +55,7 @@
 #define DEFAULT_BITRATE       (160)
 #define DEFAULT_CHANNELS      (2)
 #define DEFAULT_DELETE_HOURS  (0)
+#define DEFAULT_ARCHIVE_PERIOD_SECONDS (3600)
 
 
 #ifndef LAME_SAMPLES_PER_FRAME
@@ -112,7 +113,7 @@ typedef enum {
 typedef struct rotter_ringbuffer_s
 {
     char label;                      // The name/label of the ringbuffer (for debugging)
-    time_t hour_start;               // The time (in seconds) that the hour started at
+    time_t period_start;             // The time (in seconds) that the archive period started at
     struct timeval file_start;       // The time that the file started at (with micro-second accuracy)
     void* file_handle;
     jack_ringbuffer_t *buffer[2];
@@ -154,6 +155,7 @@ extern jack_client_t *client;
 extern int channels;        // Number of input channels
 extern RotterRunState rotter_run_state;
 extern rotter_ringbuffer_t *ringbuffers[2];
+extern long archive_period_seconds; 
 
 
 
