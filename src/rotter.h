@@ -55,6 +55,7 @@
 #define DEFAULT_BITRATE       (160)
 #define DEFAULT_CHANNELS      (2)
 #define DEFAULT_DELETE_HOURS  (0)
+#define DEFAULT_SYNC_PERIOD   (10)
 #define DEFAULT_ARCHIVE_PERIOD_SECONDS (3600)
 
 
@@ -127,6 +128,7 @@ typedef struct encoder_funcs_s
 
   void* (*open)(const char * filepath);       // Result: pointer to file handle
   int (*close)(void *fh, time_t file_start);  // Result: 0=success
+  int (*sync)(void *fh);                      // Result: 0=success
 
   int (*write)(void *fh, size_t sample_count, jack_default_audio_sample_t *buffer[]);
                                               // Result: 0=success

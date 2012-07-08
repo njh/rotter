@@ -79,6 +79,12 @@ static int write_twolame(void *fh, size_t sample_count, jack_default_audio_sampl
   return 0;
 }
 
+static int sync_twolame(void *fh)
+{
+  FILE *file = (FILE*)fh;
+  int fd = fileno(file);
+  return fsync(fd);
+}
 
 static void deinit_twolame()
 {
@@ -165,6 +171,7 @@ encoder_funcs_t* init_twolame( output_format_t* format, int channels, int bitrat
   funcs->open = open_mpegaudio_file;
   funcs->close = close_mpegaudio_file;
   funcs->write = write_twolame;
+  funcs->sync = sync_twolame;
   funcs->deinit = deinit_twolame;
 
   return funcs;

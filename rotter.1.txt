@@ -90,6 +90,10 @@ OPTIONS
         See your system's strftime documentation for a full list of available
         format specifiers (man strftime).
 
+-s <secs>::
+        Sets the how often (in seconds) that rotter asks the operating
+        system to flush its buffers and sync the encoded audio to disk.
+
 -j::
         By default rotter will automatically try and start jackd if it
         isn't running. This option disables that feature.

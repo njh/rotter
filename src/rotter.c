@@ -516,6 +516,18 @@ static int rotter_process_audio()
   return total_samples;
 }
 
+static void rotter_sync_to_disk()
+{
+  int b;
+
+  for(b=0; b<2; b++) {
+    rotter_ringbuffer_t *ringbuffer = ringbuffers[b];
+    if (ringbuffer && ringbuffer->file_handle) {
+      encoder->sync(ringbuffer->file_handle);
+    }
+  }
+}
+
 static int init_ringbuffers()
 {
   size_t ringbuffer_size = 0;
@@ -647,6 +659,7 @@ static void usage()
   printf("   -d <hours>    Delete files in directory older than this\n");
   printf("   -R <secs>     Length of the ring buffer (in seconds, default %2.2f)\n", DEFAULT_RB_LEN);
   printf("   -L <layout>   File layout (default '%s')\n", DEFAULT_FILE_LAYOUT);
+  printf("   -s <secs>     How often to sync to disk (in seconds, default %d)\n", DEFAULT_SYNC_PERIOD);
   printf("   -j            Don't automatically start jackd\n");
   printf("   -u            Use UTC rather than local time in filenames\n");
   printf("   -v            Enable verbose mode\n");
@@ -685,14 +698,16 @@ int main(int argc, char *argv[])
   char *connect_right = NULL;
   const char *format_name = NULL;
   int bitrate = DEFAULT_BITRATE;
+  int sync_period = DEFAULT_SYNC_PERIOD;
   float sleep_time = 0;
+  time_t next_sync = 0;
   int i,opt;
 
   // Make STDOUT unbuffered
   setbuf(stdout, NULL);
 
   // Parse Switches
-  while ((opt = getopt(argc, argv, "al:r:n:N:p:jf:b:d:c:R:L:uvqh")) != -1) {
+  while ((opt = getopt(argc, argv, "al:r:n:N:p:jf:b:d:c:R:L:s:uvqh")) != -1) {
     switch (opt) {
       case 'a':  autoconnect = 1; break;
       case 'l':  connect_left = optarg; break;
@@ -707,6 +722,7 @@ int main(int argc, char *argv[])
       case 'c':  channels = atoi(optarg); break;
       case 'R':  rb_duration = atof(optarg); break;
       case 'L':  file_layout = optarg; break;
+      case 's':  sync_period = atoi(optarg); break;
       case 'u':  utc = 1; break;
       case 'v':  verbose = 1; break;
       case 'q':  quiet = 1; break;
@@ -808,11 +824,17 @@ int main(int argc, char *argv[])
   sleep_time = (2.0f * output_format->samples_per_frame / jack_get_sample_rate( client ));
   rotter_debug("Sleep period is %dms.", (int)(sleep_time * 1000));
 
-
   while( rotter_run_state == ROTTER_STATE_RUNNING ) {
+    time_t now = time(NULL);
     int samples_processed = rotter_process_audio(encoder);
     if (samples_processed <= 0) {
       usleep(sleep_time * 1000000);
+    }
+
+    // Is it time to sync the encoded audio to disk?
+    if (next_sync < now) {
+      rotter_sync_to_disk();
+      next_sync = now + sync_period;
     }
 
     deletefiles_cleanup_child();

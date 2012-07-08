@@ -80,6 +80,14 @@ static int write_sndfile(void *fh, size_t sample_count, jack_default_audio_sampl
 }
 
 
+static int sync_sndfile(void *fh)
+{
+  SNDFILE *sndfile = (SNDFILE *)fh;
+  sf_write_sync(sndfile);
+  return 0;
+}
+
+
 static void deinit_sndfile()
 {
   rotter_debug("Shutting down sndfile encoder.");
@@ -219,6 +227,7 @@ encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrat
   funcs->open = open_sndfile;
   funcs->close = close_sndfile;
   funcs->write = write_sndfile;
+  funcs->sync = sync_sndfile;
   funcs->deinit = deinit_sndfile;
 
   return funcs;
