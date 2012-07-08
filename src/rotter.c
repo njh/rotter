@@ -345,6 +345,40 @@ static char * time_to_filepath_accurate( struct tm *tm, unsigned int usec, const
   return filepath;
 }
 
+static char * time_to_filepath_custom( struct tm *tm, char * file_layout )
+{
+  int i;
+  char* filepath = malloc( MAX_FILEPATH_LEN );
+  if (!filepath)
+      return NULL;
+
+  // Copy root directory path and separator into new filepath
+  snprintf( filepath, MAX_FILEPATH_LEN, "%s/", root_directory );
+
+  // Append custom filepath to end of the root directory path
+  // Ensure custom filepath is constructed OK by checking number of characters appended
+  // This also catches the possible error that an empty format string has been supplied
+  if(!strftime( (filepath + strlen(filepath)), (MAX_FILEPATH_LEN - strlen(filepath)), file_layout, tm ))
+      return NULL;
+
+  // Work backwards to locate separator between directory/file part
+  // Only works on systems using '/' as a directory separator, but this is also assumed elsewhere
+  for(i=strlen(filepath); i>0; i--) {
+    if (filepath[i]=='/') {
+      filepath[i]=0; // Temporarily replace with string terminator
+
+      // Make sure directory exists
+      if (rotter_mkdir_p( filepath ))
+        rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
+
+      filepath[i]='/'; // Replace directory/file separator
+      break;
+    }
+  }
+
+  return filepath;
+}
+
 
 static size_t rotter_read_from_ringbuffer(rotter_ringbuffer_t *ringbuffer, size_t desired_frames)
 {
@@ -389,18 +423,18 @@ static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
     localtime_r( &ringbuffer->file_start.tv_sec, &tm );
   }
 
-  if (file_layout[0] == 'h' || file_layout[0] == 'H') {
+  if (!strcasecmp(file_layout, "hierarchy")) {
     filepath = time_to_filepath_hierarchy( &tm, encoder->file_suffix );
-  } else if (file_layout[0] == 'f' || file_layout[0] == 'F') {
+  } else if (!strcasecmp(file_layout, "flat")) {
     filepath = time_to_filepath_flat( &tm, encoder->file_suffix );
-  } else if (file_layout[0] == 'c' || file_layout[0] == 'C') {
+  } else if (!strcasecmp(file_layout, "combo")) {
     filepath = time_to_filepath_combo( &tm, encoder->file_suffix );
-  } else if (file_layout[0] == 'd' || file_layout[0] == 'D') {
+  } else if (!strcasecmp(file_layout, "dailydir")) {
     filepath = time_to_filepath_dailydir( &tm, encoder->file_suffix );
-  } else if (file_layout[0] == 'a' || file_layout[0] == 'A') {
+  } else if (!strcasecmp(file_layout, "accurate")) {
     filepath = time_to_filepath_accurate( &tm, ringbuffer->file_start.tv_usec, encoder->file_suffix );
   } else {
-    rotter_fatal("Unknown file layout: %s", file_layout);
+    filepath = time_to_filepath_custom( &tm, file_layout );
   }
 
   if (!filepath)
@@ -608,6 +642,9 @@ static void usage()
   printf("   combo         /root_directory/YYYY/MM/DD/HH/YYYY-MM-DD-HH.suffix\n");
   printf("   dailydir      /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH.suffix\n");
   printf("   accurate      /root_directory/YYYY-MM-DD/YYYY-MM-DD-HH-mm-ss-uu.suffix\n");
+  printf("\n");
+  printf("A custom file layout may be specified using a strftime-style format string,\n");
+  printf("for example: -L \"%%Y-%%m-%%d/studio-1/%%H%%M.flac\"\n");
 
   // Display the available audio output formats
   printf("\nSupported audio output formats:\n");
