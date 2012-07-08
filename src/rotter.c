@@ -641,12 +641,12 @@ static void usage()
   printf("   -f <format>   Format of recording (see list below)\n");
   printf("   -b <bitrate>  Bitrate of recording (bitstream formats only)\n");
   printf("   -c <channels> Number of channels\n");
-  printf("   -n <name>     Name for this JACK client\n");
-  printf("   -N <filename> Name for archive files (default 'archive')\n");
+  printf("   -n <name>     Name for this JACK client (default '%s')\n", DEFAULT_CLIENT_NAME);
+  printf("   -N <filename> Name for archive files (default '%s')\n", DEFAULT_ARCHIVE_NAME);
   printf("   -p <secs>     Period of each archive file (in seconds, default %d)\n", DEFAULT_ARCHIVE_PERIOD_SECONDS);
   printf("   -d <hours>    Delete files in directory older than this\n");
   printf("   -R <secs>     Length of the ring buffer (in seconds, default %2.2f)\n", DEFAULT_RB_LEN);
-  printf("   -L <layout>   File layout (default 'hierarchy')\n");
+  printf("   -L <layout>   File layout (default '%s')\n", DEFAULT_FILE_LAYOUT);
   printf("   -j            Don't automatically start jackd\n");
   printf("   -u            Use UTC rather than local time in filenames\n");
   printf("   -v            Enable verbose mode\n");
