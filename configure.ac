@@ -4,7 +4,7 @@ AC_PREREQ(2.59)
 
 dnl ############# Initialization
 
-AC_INIT([rotter], [1.0], [njh@aelius.com], rotter)
+AC_INIT([rotter], [1.0.0], [njh@aelius.com], rotter)
 AC_CONFIG_SRCDIR([src/rotter.c])
 AC_CONFIG_AUX_DIR([build-scripts])
 AC_CONFIG_MACRO_DIR([build-scripts])
