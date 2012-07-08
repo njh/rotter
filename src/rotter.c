@@ -3,7 +3,7 @@
   rotter.c
 
   rotter: Recording of Transmission / Audio Logger
-  Copyright (C) 2006-2010  Nicholas J. Humfrey
+  Copyright (C) 2006-2012  Nicholas J. Humfrey
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -36,6 +36,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 
 #include "config.h"
 #include "rotter.h"
@@ -531,6 +532,10 @@ static int init_ringbuffers()
       return -1;
     }
 
+    if (mlock(ringbuffers[b], sizeof(rotter_ringbuffer_t))) {
+      rotter_error("Failed to lock data structure for ringbuffer %c into physical memory.", label);
+    }
+
     ringbuffers[b]->label = label;
     ringbuffers[b]->period_start = 0;
     ringbuffers[b]->file_handle = NULL;
@@ -544,6 +549,11 @@ static int init_ringbuffers()
       if (!ringbuffers[b]->buffer[c]) {
         rotter_fatal("Cannot create ringbuffer buffer %c%d.", label, c);
         return -1;
+      }
+
+      // Lock into physical memory to avoid delays during the realtime callback
+      if (jack_ringbuffer_mlock(ringbuffers[b]->buffer[c])) {
+        rotter_error("Failed to lock JACK ringbuffer %c%d into physical memory.", label, c);
       }
     }
   }
@@ -561,6 +571,10 @@ static int deinit_ringbuffers()
         if (ringbuffers[b]->buffer[c]) {
           jack_ringbuffer_free(ringbuffers[b]->buffer[c]);
         }
+      }
+
+      if (munlock(ringbuffers[b], sizeof(rotter_ringbuffer_t))) {
+        rotter_error("Failed to unlock ringbuffer %c from physical memory.", ringbuffers[b]->label);
       }
 
       if (ringbuffers[b]->file_handle) {
