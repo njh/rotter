@@ -1,9 +1,11 @@
 Nicholas J. Humfrey <njh@aelius.com>
 
 
-Thanks to:
-Drew Roberts for Combo file layout support
-Mike Lyon for feedback on libsndfile support
-Valter Godoy for textual corrections
-Aleksander Plotnikov for reporting bug in ID3 code
-Cristian Morales Vega for bug fixes
+With thanks to:
+* Nick Prater
+* Paul Kelly
+* Drew Roberts
+* Mike Lyon
+* Valter Godoy
+* Aleksander Plotnikov
+* Cristian Morales Vega
