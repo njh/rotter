@@ -57,8 +57,8 @@ static void delete_file( const char* filepath, dev_t device, time_t timestamp )
   if (sb.st_mtime < timestamp) {
     rotter_debug( "Deleting file: %s", filepath );
 
-    if (unlink(filepath) && rmdir(filepath)) {
-      rotter_error( "Warning: failed to delete file: %s", filepath );
+    if (unlink(filepath)) {
+      rotter_error( "Warning: failed to delete file: %s (%s)", filepath, strerror(errno) );
       return;
     }
   }
@@ -89,13 +89,6 @@ static void deletefiles_in_dir( const char* dirpath, dev_t device, time_t timest
     return;
   }
 
-  // Check we are on the same device
-  if (get_file_device(dirpath) != device) {
-    rotter_debug( "Warning: %s isn't on same device as root dir.", dirpath );
-    closedir( dirp );
-    return;
-  }
-
   // Check each item in the directory
   while( (dp = readdir( dirp )) != NULL ) {
     int newpath_len;
@@ -104,16 +97,25 @@ static void deletefiles_in_dir( const char* dirpath, dev_t device, time_t timest
     if (strcmp( ".", dp->d_name )==0) continue;
     if (strcmp( "..", dp->d_name )==0) continue;
 
-
     newpath_len = strlen(dirpath) + strlen(dp->d_name) + 2;
     newpath = malloc( newpath_len );
     snprintf( newpath, newpath_len, "%s/%s", dirpath, dp->d_name );
 
     if (dp->d_type == DT_DIR) {
 
-      // Process sub directory
-      deletefiles_in_dir( newpath, device, timestamp );
-      delete_file( newpath, device, timestamp );
+      // Check we are on the same device
+      if (get_file_device(newpath) != device) {
+        rotter_debug( "Warning: %s isn't on same device as root dir.", dirpath );
+      } else {
+        // Delete files in the directory
+        deletefiles_in_dir( newpath, device, timestamp );
+
+        // Try and delete the directory itself
+        if (rmdir(newpath) && errno != ENOTEMPTY) {
+          rotter_error( "Warning: failed to delete directory: %s (%s)",
+                        newpath, strerror(errno) );
+        }
+      }
 
     } else if (dp->d_type == DT_REG) {
 
@@ -163,6 +165,11 @@ int deletefiles( const char* dirpath, int hours )
   // (deleting files is pretty unimportant)
   old_niceness = nice( new_niceness );
   rotter_debug( "Changed child proccess niceless from %d to %d.", old_niceness, new_niceness );
+  
+  // Sleep for 10 seconds, so we don't use up CPU while a new new files 
+  // are just starting to be encoded, and so that we don't delete empty directories
+  // just as they are being created.
+  sleep(10);
 
   // Recursively process directories
   deletefiles_in_dir( dirpath, device, now-(hours*3600) );
@@ -172,6 +179,7 @@ int deletefiles( const char* dirpath, int hours )
 }
 
 
+// Harvest zombie processes
 void deletefiles_cleanup_child()
 {
   // Has a child process finished?
