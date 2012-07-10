@@ -23,15 +23,12 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
 #include <string.h>
-#include <limits.h>
 #include <unistd.h>
 #include <errno.h>
+#include <libgen.h>
 
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include <dirent.h>
 
 #include "rotter.h"
@@ -62,10 +59,6 @@ int rotter_mkdir_p( const char* dir )
 {
   int result = 0;
 
-  if (rotter_directory_exists( dir )) {
-    return 0;
-  }
-
   if (mkdir(dir, DEFAULT_DIR_MODE) < 0) {
     if (errno == ENOENT) {
       // ENOENT (a parent directory doesn't exist)
@@ -94,4 +87,24 @@ int rotter_mkdir_p( const char* dir )
   }
 
   return result;
+}
+
+
+int rotter_mkdir_for_file( char* filepath )
+{
+  char* dir = dirname(filepath);
+  if (dir == NULL) {
+    return -1;
+  }
+
+  if (rotter_directory_exists( dir )) {
+    return 0;
+  } else {
+    rotter_debug("Creating directory: %s", dir);
+    if (rotter_mkdir_p( dir ))
+      return -1;
+  }
+
+  // Success
+  return 0;
 }

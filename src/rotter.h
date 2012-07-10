@@ -169,6 +169,7 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... );
 // In dir.c
 int rotter_directory_exists(const char * filepath);
 int rotter_mkdir_p( const char* dir );
+int rotter_mkdir_for_file( char* filepath );
 
 // In jack.c
 int init_jack( const char* client_name, jack_options_t jack_opt );

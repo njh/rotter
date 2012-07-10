@@ -165,158 +165,181 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... )
 
 
 
-static char * time_to_filepath_flat( struct tm *tm, const char* suffix )
+static int time_to_filepath_flat( struct tm *tm, const char* suffix, char* filepath )
 {
-  char* filepath = malloc( MAX_FILEPATH_LEN );
+  int n;
 
   if (archive_name) {
-    // Create the full file path
-    snprintf( filepath, MAX_FILEPATH_LEN, "%s/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, archive_name, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
+    n = snprintf( filepath, MAX_FILEPATH_LEN, "%s/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
+                  root_directory, archive_name, tm->tm_year+1900, tm->tm_mon+1,
+                  tm->tm_mday, tm->tm_hour, suffix );
   } else {
-    // Create the full file path
-    snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
+    n = snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d-%2.2d.%s",
+                  root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                  tm->tm_hour, suffix );
   }
 
-  return filepath;
+  // Was a non-zero length string printed?
+  return n <= 0;
 }
 
 
-static char * time_to_filepath_hierarchy( struct tm *tm, const char* suffix )
+static int time_to_filepath_hierarchy( struct tm *tm, const char* suffix, char* filepath )
 {
-  char* filepath = malloc( MAX_FILEPATH_LEN );
-  if (!filepath)
-      return NULL;
+  int n;
 
-  // Make sure the parent directories exists
-  snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
-        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour );
-
-  if (rotter_mkdir_p( filepath ))
-    rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
-
-
-  // Create the full file path
   if (archive_name) {
-    snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s.%s",
-        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, archive_name, suffix );
+    n = snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s.%s",
+                  root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                  tm->tm_hour, archive_name, suffix );
   } else {
-    snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s.%s",
-        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, DEFAULT_ARCHIVE_NAME, suffix );
+    n = snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s.%s",
+                  root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                  tm->tm_hour, DEFAULT_ARCHIVE_NAME, suffix );
   }
 
-
-  return filepath;
+  // Was a non-zero length string printed?
+  return n <= 0;
 }
 
 
-static char * time_to_filepath_combo( struct tm *tm, const char* suffix )
+static int time_to_filepath_combo( struct tm *tm, const char* suffix, char* filepath )
 {
-  char* filepath = malloc( MAX_FILEPATH_LEN );
-  if (!filepath)
-      return NULL;
+  int n;
 
-  // Make sure the parent directories exists
-  snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d",
-        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour );
-
-  if (rotter_mkdir_p( filepath ))
-    rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
-
-
-  // Create the full file path
   if (archive_name) {
-    snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, archive_name, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
+    n = snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
+                  root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                  tm->tm_hour, archive_name, tm->tm_year+1900, tm->tm_mon+1,
+                  tm->tm_mday, tm->tm_hour, suffix );
   } else {
-    snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
+    n = snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d/%2.2d/%2.2d/%2.2d/%4.4d-%2.2d-%2.2d-%2.2d.%s",
+                  root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                  tm->tm_hour, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                  tm->tm_hour, suffix );
   }
 
-  return filepath;
+  // Was a non-zero length string printed?
+  return n <= 0;
 }
 
-static char * time_to_filepath_dailydir( struct tm *tm, const char* suffix )
+
+static int time_to_filepath_dailydir( struct tm *tm, const char* suffix, char* filepath )
 {
-  char* filepath = malloc( MAX_FILEPATH_LEN );
-  if (!filepath)
-      return NULL;
+  int n;
 
-  // Make sure the parent directories exists
-  snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d",
-        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday );
-
-  if (rotter_mkdir_p( filepath ))
-    rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
-
-
-  // Create the full file path
   if (archive_name) {
-    snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, archive_name, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
+    n = snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%s-%4.4d-%2.2d-%2.2d-%2.2d.%s",
+                  root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                  archive_name, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                  tm->tm_hour, suffix );
   } else {
-    snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%4.4d-%2.2d-%2.2d-%2.2d.%s",
-          root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, suffix );
+    n = snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%4.4d-%2.2d-%2.2d-%2.2d.%s",
+                  root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                  tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                  tm->tm_hour, suffix );
   }
 
-  return filepath;
+  // Was a non-zero length string printed?
+  return n <= 0;
 }
 
-static char * time_to_filepath_accurate( struct tm *tm, unsigned int usec, const char* suffix )
+
+static int time_to_filepath_accurate( struct tm *tm, unsigned int usec, const char* suffix, char* filepath )
 {
-  char* filepath = malloc( MAX_FILEPATH_LEN );
-  if (!filepath)
-      return NULL;
-
-  // Make sure the parent directories exists
-  snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d",
-        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday );
-
-  if (rotter_mkdir_p( filepath ))
-    rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
-
+  int n;
 
   // Create the full file path
-  snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%4.4d-%2.2d-%2.2d-%2.2d-%2.2d-%2.2d-%2.2d.%s",
-        root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour,
-        tm->tm_min, tm->tm_sec, (int)(usec / 10000), suffix );
+  n = snprintf( filepath, MAX_FILEPATH_LEN, "%s/%4.4d-%2.2d-%2.2d/%4.4d-%2.2d-%2.2d-%2.2d-%2.2d-%2.2d-%2.2d.%s",
+                root_directory, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+                tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, tm->tm_hour,
+                tm->tm_min, tm->tm_sec, (int)(usec / 10000), suffix );
 
-  return filepath;
+  // Was a non-zero length string printed?
+  return n <= 0;
 }
 
-static char * time_to_filepath_custom( struct tm *tm, char * file_layout )
+
+static int time_to_filepath_custom( struct tm *tm, char * file_layout, char* filepath )
 {
-  int i;
-  char* filepath = malloc( MAX_FILEPATH_LEN );
-  if (!filepath)
-      return NULL;
+  size_t len;
 
   // Copy root directory path and separator into new filepath
-  snprintf( filepath, MAX_FILEPATH_LEN, "%s/", root_directory );
+  if (snprintf( filepath, MAX_FILEPATH_LEN, "%s/", root_directory ) <= 0);
+    return 1;
+
+  // Get the length of the root directory
+  len = strlen(filepath);
 
   // Append custom filepath to end of the root directory path
   // Ensure custom filepath is constructed OK by checking number of characters appended
   // This also catches the possible error that an empty format string has been supplied
-  if(!strftime( (filepath + strlen(filepath)), (MAX_FILEPATH_LEN - strlen(filepath)), file_layout, tm ))
-      return NULL;
+  if(strftime( filepath + len, MAX_FILEPATH_LEN - len, file_layout, tm ) <= 0)
+    return 1;
 
-  // Work backwards to locate separator between directory/file part
-  // Only works on systems using '/' as a directory separator, but this is also assumed elsewhere
-  for(i=strlen(filepath); i>0; i--) {
-    if (filepath[i]=='/') {
-      filepath[i]=0; // Temporarily replace with string terminator
+  // Success
+  return 0;
+}
 
-      // Make sure directory exists
-      if (rotter_mkdir_p( filepath ))
-        rotter_fatal( "Failed to create directory (%s): %s", filepath, strerror(errno) );
 
-      filepath[i]='/'; // Replace directory/file separator
-      break;
-    }
+static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
+{
+  char filepath[MAX_FILEPATH_LEN];
+  int err = -1;
+  struct tm tm;
+
+  if (utc) {
+    gmtime_r( &ringbuffer->file_start.tv_sec, &tm );
+  } else {
+    localtime_r( &ringbuffer->file_start.tv_sec, &tm );
   }
 
-  return filepath;
+  if (!strcasecmp(file_layout, "hierarchy")) {
+    err = time_to_filepath_hierarchy( &tm, encoder->file_suffix, filepath );
+  } else if (!strcasecmp(file_layout, "flat")) {
+    err = time_to_filepath_flat( &tm, encoder->file_suffix, filepath );
+  } else if (!strcasecmp(file_layout, "combo")) {
+    err = time_to_filepath_combo( &tm, encoder->file_suffix, filepath );
+  } else if (!strcasecmp(file_layout, "dailydir")) {
+    err = time_to_filepath_dailydir( &tm, encoder->file_suffix, filepath );
+  } else if (!strcasecmp(file_layout, "accurate")) {
+    err = time_to_filepath_accurate( &tm, ringbuffer->file_start.tv_usec, encoder->file_suffix, filepath );
+  } else {
+    err = time_to_filepath_custom( &tm, file_layout, filepath );
+  }
+
+  if (err) {
+    rotter_fatal( "Failed to build file path for layout: %s", file_layout );
+    return -1;
+  }
+
+  // Make sure the parent directory exists
+  if (rotter_mkdir_for_file(filepath)) {
+    rotter_fatal( "Failed to create parent directories for filepath: %s (%s)", 
+                  filepath, strerror(errno) );
+    return -1;
+  }
+
+  // Open the new file
+  rotter_info( "Opening new archive file for ringbuffer %c: %s", ringbuffer->label, filepath );
+  ringbuffer->file_handle = encoder->open(filepath);
+
+  if (ringbuffer->file_handle) {
+    // Success
+    return 0;
+  } else {
+    return 1;
+  }
+}
+
+
+static int rotter_close_file(rotter_ringbuffer_t *ringbuffer)
+{
+  rotter_info( "Closing file for ringbuffer %c.", ringbuffer->label);
+  encoder->close(ringbuffer->file_handle, ringbuffer->period_start);
+  ringbuffer->close_file = 0;
+  ringbuffer->file_handle = NULL;
+  return 0;
 }
 
 
@@ -351,56 +374,6 @@ static size_t rotter_read_from_ringbuffer(rotter_ringbuffer_t *ringbuffer, size_
   return bytes_read / sizeof(jack_default_audio_sample_t);
 }
 
-
-static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
-{
-  char* filepath = NULL;
-  struct tm tm;
-
-  if (utc) {
-    gmtime_r( &ringbuffer->file_start.tv_sec, &tm );
-  } else {
-    localtime_r( &ringbuffer->file_start.tv_sec, &tm );
-  }
-
-  if (!strcasecmp(file_layout, "hierarchy")) {
-    filepath = time_to_filepath_hierarchy( &tm, encoder->file_suffix );
-  } else if (!strcasecmp(file_layout, "flat")) {
-    filepath = time_to_filepath_flat( &tm, encoder->file_suffix );
-  } else if (!strcasecmp(file_layout, "combo")) {
-    filepath = time_to_filepath_combo( &tm, encoder->file_suffix );
-  } else if (!strcasecmp(file_layout, "dailydir")) {
-    filepath = time_to_filepath_dailydir( &tm, encoder->file_suffix );
-  } else if (!strcasecmp(file_layout, "accurate")) {
-    filepath = time_to_filepath_accurate( &tm, ringbuffer->file_start.tv_usec, encoder->file_suffix );
-  } else {
-    filepath = time_to_filepath_custom( &tm, file_layout );
-  }
-
-  if (!filepath)
-    return 1;
-
-  // Open the new file
-  rotter_info( "Opening new archive file for ringbuffer %c: %s", ringbuffer->label, filepath );
-  ringbuffer->file_handle = encoder->open(filepath);
-  free(filepath);
-
-  if (ringbuffer->file_handle) {
-    // Success
-    return 0;
-  } else {
-    return 1;
-  }
-}
-
-static int rotter_close_file(rotter_ringbuffer_t *ringbuffer)
-{
-  rotter_info( "Closing file for ringbuffer %c.", ringbuffer->label);
-  encoder->close(ringbuffer->file_handle, ringbuffer->period_start);
-  ringbuffer->close_file = 0;
-  ringbuffer->file_handle = NULL;
-  return 0;
-}
 
 static int rotter_process_audio()
 {
