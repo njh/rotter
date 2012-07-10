@@ -8,4 +8,5 @@ rotter_SOURCES = \
 	sndfile.c \
 	lame.c \
 	mpegaudiofile.c \
+	dir.c \
 	deletefiles.c

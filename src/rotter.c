@@ -165,68 +165,6 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... )
 
 
 
-
-
-
-static int rotter_directory_exists(const char * filepath)
-{
-  struct stat s;
-  int i = stat ( filepath, &s );
-  if ( i == 0 )
-  {
-    if (s.st_mode & S_IFDIR) {
-      // Yes, a directory
-      return 1;
-    } else {
-      // Not a directory
-      rotter_error( "Not a directory: %s", filepath );
-      return 0;
-    }
-  }
-
-  return 0;
-}
-
-
-static int rotter_mkdir_p( const char* dir )
-{
-  int result = 0;
-
-  if (rotter_directory_exists( dir )) {
-    return 0;
-  }
-
-  if (mkdir(dir, DEFAULT_DIR_MODE) < 0) {
-    if (errno == ENOENT) {
-      // ENOENT (a parent directory doesn't exist)
-      char* parent = strdup( dir );
-      int i;
-
-      // Create parent directories recursively
-      for(i=strlen(parent); i>0; i--) {
-        if (parent[i]=='/') {
-          parent[i]=0;
-          result = rotter_mkdir_p( parent );
-          break;
-        }
-      }
-
-      free(parent);
-
-      // Try again to create the directory
-      if (result==0) {
-        result = mkdir(dir, DEFAULT_DIR_MODE);
-      }
-
-    } else {
-      result = -1;
-    }
-  }
-
-  return result;
-}
-
-
 static char * time_to_filepath_flat( struct tm *tm, const char* suffix )
 {
   char* filepath = malloc( MAX_FILEPATH_LEN );

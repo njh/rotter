@@ -166,6 +166,10 @@ extern long archive_period_seconds;
 // In rotter.c
 void rotter_log( RotterLogLevel level, const char* fmt, ... );
 
+// In dir.c
+int rotter_directory_exists(const char * filepath);
+int rotter_mkdir_p( const char* dir );
+
 // In jack.c
 int init_jack( const char* client_name, jack_options_t jack_opt );
 int connect_jack_port( const char* out, jack_port_t *port );
