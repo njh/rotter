@@ -83,7 +83,13 @@ static int write_sndfile(void *fh, size_t sample_count, jack_default_audio_sampl
 static int sync_sndfile(void *fh)
 {
   SNDFILE *sndfile = (SNDFILE *)fh;
+  
+  // Write the header to file, so other processes can read it
+  sf_command(sndfile, SFC_UPDATE_HEADER_NOW, NULL, 0);
+  
+  // Force sync to disk
   sf_write_sync(sndfile);
+
   return 0;
 }
 
