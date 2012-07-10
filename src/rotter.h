@@ -189,6 +189,7 @@ encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrat
 // In mpegaudiofile.c
 void* open_mpegaudio_file(const char* filepath);
 int close_mpegaudio_file(void* fh, time_t file_start);
+int sync_mpegaudio_file(void *fh);
 
 // In deletefiles.c
 int deletefiles( const char* dir, int hours );

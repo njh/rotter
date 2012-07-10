@@ -193,3 +193,10 @@ void* open_mpegaudio_file( const char* filepath )
 
   return file;
 }
+
+int sync_mpegaudio_file(void *fh)
+{
+  FILE *file = (FILE*)fh;
+  int fd = fileno(file);
+  return fsync(fd);
+}

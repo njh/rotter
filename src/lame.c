@@ -109,14 +109,6 @@ static int write_lame(void *fh, size_t sample_count, jack_default_audio_sample_t
 }
 
 
-static int sync_lame(void *fh)
-{
-  FILE *file = (FILE*)fh;
-  int fd = fileno(file);
-  return fsync(fd);
-}
-
-
 static void deinit_lame()
 {
   int c;
@@ -231,7 +223,7 @@ encoder_funcs_t* init_lame( output_format_t* format, int channels, int bitrate )
   funcs->open = open_mpegaudio_file;
   funcs->close = close_mpegaudio_file;
   funcs->write = write_lame;
-  funcs->sync = sync_lame;
+  funcs->sync = sync_mpegaudio_file;
   funcs->deinit = deinit_lame;
 
   return funcs;
