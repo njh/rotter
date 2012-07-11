@@ -3,7 +3,7 @@
   sndfile.c
 
   rotter: Recording of Transmission / Audio Logger
-  Copyright (C) 2007-2010  Nicholas J. Humfrey
+  Copyright (C) 2007-2012  Nicholas J. Humfrey
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -105,7 +105,7 @@ static void deinit_sndfile()
 }
 
 
-static int close_sndfile(void *fh, time_t file_start)
+static int close_sndfile(void *fh, struct timeval *file_start)
 {
   SNDFILE *sndfile = (SNDFILE *)fh;
   if (sndfile==NULL) return -1;
@@ -122,7 +122,7 @@ static int close_sndfile(void *fh, time_t file_start)
 }
 
 
-static void* open_sndfile(const char* filepath)
+static void* open_sndfile(const char* filepath, struct timeval *file_start)
 {
   SNDFILE *sndfile = NULL;
   int read_write_mode = 1;

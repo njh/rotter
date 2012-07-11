@@ -322,7 +322,7 @@ static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
 
   // Open the new file
   rotter_info( "Opening new archive file for ringbuffer %c: %s", ringbuffer->label, filepath );
-  ringbuffer->file_handle = encoder->open(filepath);
+  ringbuffer->file_handle = encoder->open(filepath, &ringbuffer->file_start);
 
   if (ringbuffer->file_handle) {
     // Success
@@ -336,7 +336,7 @@ static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
 static int rotter_close_file(rotter_ringbuffer_t *ringbuffer)
 {
   rotter_info( "Closing file for ringbuffer %c.", ringbuffer->label);
-  encoder->close(ringbuffer->file_handle, ringbuffer->period_start);
+  encoder->close(ringbuffer->file_handle, &ringbuffer->file_start);
   ringbuffer->close_file = 0;
   ringbuffer->file_handle = NULL;
   return 0;

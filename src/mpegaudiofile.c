@@ -3,7 +3,7 @@
   mpegaudiofile.c
 
   rotter: Recording of Transmission / Audio Logger
-  Copyright (C) 2006-2010  Nicholas J. Humfrey
+  Copyright (C) 2006-2012  Nicholas J. Humfrey
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -106,7 +106,7 @@ static char* gethostname_fqdn()
 
 
 // Write an ID3v1 tag to a file handle
-static void write_id3v1(FILE* file, time_t file_start)
+static void write_id3v1(FILE* file, struct timeval *file_start)
 {
   char *hostname;
   char year[5];
@@ -119,7 +119,7 @@ static void write_id3v1(FILE* file, time_t file_start)
   bzero( &id3, sizeof( id3v1_t ));
 
   // Get a breakdown of the time recording started at
-  localtime_r( &file_start, &tm );
+  localtime_r( &file_start->tv_sec, &tm );
 
 
   // Header
@@ -159,7 +159,7 @@ static void write_id3v1(FILE* file, time_t file_start)
 }
 
 
-int close_mpegaudio_file(void* fh, time_t file_start)
+int close_mpegaudio_file(void* fh, struct timeval *file_start)
 {
   FILE *file = (FILE*)fh;
 
@@ -180,7 +180,7 @@ int close_mpegaudio_file(void* fh, time_t file_start)
 }
 
 
-void* open_mpegaudio_file( const char* filepath )
+void* open_mpegaudio_file( const char* filepath, struct timeval *file_start )
 {
   FILE* file;
 

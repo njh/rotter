@@ -3,7 +3,7 @@
   rotter.h
 
   rotter: Recording of Transmission / Audio Logger
-  Copyright (C) 2006-2010  Nicholas J. Humfrey
+  Copyright (C) 2006-2012  Nicholas J. Humfrey
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -126,12 +126,17 @@ typedef struct encoder_funcs_s
 {
   const char* file_suffix;                    // Suffix for archive files
 
-  void* (*open)(const char * filepath);       // Result: pointer to file handle
-  int (*close)(void *fh, time_t file_start);  // Result: 0=success
-  int (*sync)(void *fh);                      // Result: 0=success
+  // Result: pointer to file handle
+  void* (*open)(const char * filepath, struct timeval *file_start);
 
+  // Result: 0=success
+  int (*close)(void *fh, struct timeval *file_start);
+
+  // Result: 0=success
+  int (*sync)(void *fh);
+
+  // Result: 0=success
   int (*write)(void *fh, size_t sample_count, jack_default_audio_sample_t *buffer[]);
-                                              // Result: 0=success
 
   void (*deinit)();
 
@@ -157,7 +162,7 @@ extern jack_client_t *client;
 extern int channels;        // Number of input channels
 extern RotterRunState rotter_run_state;
 extern rotter_ringbuffer_t *ringbuffers[2];
-extern long archive_period_seconds; 
+extern long archive_period_seconds;
 
 
 
@@ -187,8 +192,8 @@ encoder_funcs_t* init_lame( output_format_t* format, int channels, int bitrate )
 encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrate );
 
 // In mpegaudiofile.c
-void* open_mpegaudio_file(const char* filepath);
-int close_mpegaudio_file(void* fh, time_t file_start);
+void* open_mpegaudio_file(const char* filepath, struct timeval *file_start);
+int close_mpegaudio_file(void* fh, struct timeval *file_start);
 int sync_mpegaudio_file(void *fh);
 
 // In deletefiles.c
