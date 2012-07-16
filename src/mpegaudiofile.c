@@ -38,7 +38,7 @@
   Informal specification: http://www.id3.org/id3v1.html
 
   I don't especially like ID3v1 but it is really simple.
-  Adding support for ID3v2 would be a lot more code.  
+  Adding support for ID3v2 would be a lot more code.
 */
 
 
@@ -75,7 +75,7 @@ static void write_id3v1(FILE* file, struct timeval *file_start)
   id3.tag[2] = 'G';
 
   // Title
-  snprintf( id3.title, sizeof(id3.title)-1, "Recorded %4.4d-%2.2d-%2.2d %2.2d:%2.2d",
+  snprintf( id3.title, sizeof(id3.title), "Recorded %4.4d-%2.2d-%2.2d %2.2d:%2.2d",
         tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, tm.tm_min );
 
   // Artist / Originator
@@ -83,14 +83,14 @@ static void write_id3v1(FILE* file, struct timeval *file_start)
     strncpy( id3.artist, originator, sizeof(id3.artist)-1 );
   }
 
-  // Album - unused
+  // UNUSED: Album
 
   // Year
   sprintf( year, "%4.4d" , tm.tm_year+1900);
   memcpy( id3.year, year, 4 );
 
   // Comment
-  snprintf( id3.comment, sizeof(id3.comment)-1, "Created by %s v%s",
+  snprintf( id3.comment, sizeof(id3.comment), "Created by %s v%s",
           PACKAGE_NAME, PACKAGE_VERSION );
 
   // Deliberately invalid genre
