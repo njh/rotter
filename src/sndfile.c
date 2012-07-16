@@ -83,10 +83,10 @@ static int write_sndfile(void *fh, size_t sample_count, jack_default_audio_sampl
 static int sync_sndfile(void *fh)
 {
   SNDFILE *sndfile = (SNDFILE *)fh;
-  
+
   // Write the header to file, so other processes can read it
   sf_command(sndfile, SFC_UPDATE_HEADER_NOW, NULL, 0);
-  
+
   // Force sync to disk
   sf_write_sync(sndfile);
 
@@ -130,10 +130,10 @@ static void* open_sndfile(const char* filepath, struct timeval *file_start)
 
   rotter_debug("Opening libsndfile output file: %s", filepath);
   sndfile = sf_open( filepath, SFM_RDWR, &sfinfo );
-  
+
   // Some output formats, like flac and vorbis, do not support read/write mode
   // There is no stable way to trap this specific error in the libsndfile public API
-  // so if we fail to open the file, try once more in write-only mode. 
+  // so if we fail to open the file, try once more in write-only mode.
   //
   // Using fallback, rather than hard-coding the current capabilities of each format, so that
   // we will automatically benefit if libsndfile is extended to provide read/write mode for
@@ -146,10 +146,19 @@ static void* open_sndfile(const char* filepath, struct timeval *file_start)
     read_write_mode = 0;
     sndfile = sf_open( filepath, SFM_WRITE, &sfinfo );
   }
- 
+
   if (sndfile==NULL) {
     rotter_error( "Failed to open output file: %s", sf_strerror(NULL) );
     return NULL;
+  }
+
+  // Is VBR mode enabled?
+  if (vbr_quality >= 0) {
+    if (!sf_command(sndfile, SFC_SET_VBR_ENCODING_QUALITY, &vbr_quality, sizeof(vbr_quality))) {
+      rotter_error( "Failed to set VBR quality." );
+      sf_close(sndfile);
+      return NULL;
+    }
   }
 
   // Seek to the end of the file, so that we don't overwrite any existing audio
@@ -205,7 +214,6 @@ encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrat
     return NULL;
   }
 
-
   // Fill in the rest of the SF_INFO data structure
   sfinfo.samplerate = jack_get_sample_rate( client );
   sfinfo.channels = channels;
@@ -213,6 +221,9 @@ encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrat
   // Display info about input/output
   rotter_debug( "  Input: %d Hz, %d channels", sfinfo.samplerate, sfinfo.channels );
   rotter_debug( "  Output: %s, %s.", format_info.name, subformat_info.name );
+  if (vbr_quality >= 0) {
+    rotter_debug( "  VBR Quality: %2.2d", vbr_quality );
+  }
 
   // Check that the format is valid
   if (!sf_format_check(&sfinfo)) {

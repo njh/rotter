@@ -159,7 +159,8 @@ typedef struct output_format_s
 // ------- Globals ---------
 extern jack_port_t *inport[2];
 extern jack_client_t *client;
-extern int channels;        // Number of input channels
+extern int channels;
+extern double vbr_quality;
 extern RotterRunState rotter_run_state;
 extern rotter_ringbuffer_t *ringbuffers[2];
 extern long archive_period_seconds;

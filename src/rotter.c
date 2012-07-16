@@ -50,6 +50,7 @@ int utc = 0;            // Use UTC rather than local time for filenames
 char* file_layout = DEFAULT_FILE_LAYOUT;  // File layout: Flat files or folder hierarchy ?
 char* archive_name = NULL;      // Archive file name
 int channels = DEFAULT_CHANNELS;    // Number of input channels
+double vbr_quality = -1;            // VBR quality value (VBR disabled by default)
 float rb_duration = DEFAULT_RB_LEN;   // Duration of ring buffer
 char *root_directory = NULL;      // Root directory of archives
 int delete_hours = DEFAULT_DELETE_HOURS;  // Delete files after this many hours
@@ -563,6 +564,7 @@ static void usage()
   printf("   -r <port>     Connect the right input to this port\n");
   printf("   -f <format>   Format of recording (see list below)\n");
   printf("   -b <bitrate>  Bitrate of recording (bitstream formats only)\n");
+  printf("   -V <quality>  VBR quality, for formats that support it (0 lowest, 10 highest)\n");
   printf("   -c <channels> Number of channels\n");
   printf("   -n <name>     Name for this JACK client (default '%s')\n", DEFAULT_CLIENT_NAME);
   printf("   -N <filename> Name for archive files (default '%s')\n", DEFAULT_ARCHIVE_NAME);
@@ -618,7 +620,7 @@ int main(int argc, char *argv[])
   setbuf(stdout, NULL);
 
   // Parse Switches
-  while ((opt = getopt(argc, argv, "al:r:n:N:p:jf:b:d:c:R:L:s:uvqh")) != -1) {
+  while ((opt = getopt(argc, argv, "al:r:n:N:p:jf:b:d:c:R:L:s:uV:vqh")) != -1) {
     switch (opt) {
       case 'a':  autoconnect = 1; break;
       case 'l':  connect_left = optarg; break;
@@ -635,6 +637,7 @@ int main(int argc, char *argv[])
       case 'L':  file_layout = optarg; break;
       case 's':  sync_period = atoi(optarg); break;
       case 'u':  utc = 1; break;
+      case 'V':  vbr_quality = atof(optarg); break;
       case 'v':  verbose = 1; break;
       case 'q':  quiet = 1; break;
       default:  usage(); break;
