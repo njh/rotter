@@ -83,10 +83,10 @@ static int write_sndfile(void *fh, size_t sample_count, jack_default_audio_sampl
 static int sync_sndfile(void *fh)
 {
   SNDFILE *sndfile = (SNDFILE *)fh;
-  
+
   // Write the header to file, so other processes can read it
   sf_command(sndfile, SFC_UPDATE_HEADER_NOW, NULL, 0);
-  
+
   // Force sync to disk
   sf_write_sync(sndfile);
 
@@ -122,6 +122,62 @@ static int close_sndfile(void *fh, struct timeval *file_start)
 }
 
 
+// Write an Broadcast Wave Extension chuck to the file
+static void write_bext(SNDFILE* sndfile, struct timeval *file_start)
+{
+  SF_BROADCAST_INFO bext;
+  char tmp_str[12];
+  uint64_t sample_count;
+  time_t midnight;
+  struct tm tm;
+
+  // Get a breakdown of the time recording started at
+  // EBU TECH 3285 doesn't specify the timezone :(
+  localtime_r( &file_start->tv_sec, &tm );
+
+  // Zero the Broadcast Wave data structure
+  bzero( &bext, sizeof( SF_BROADCAST_INFO ));
+
+  // Description field
+  strncpy( bext.description, "Recording by rotter" , sizeof(bext.description));
+
+  // Originator field
+  if (originator) {
+    strncpy(bext.originator, originator, sizeof(bext.originator)-1);
+  }
+
+  // UNUSED: bext.originator_reference
+
+  // The Origination Date field is always exactly 10 characters long
+  snprintf( tmp_str, sizeof(tmp_str), "%4.4d-%2.2d-%2.2d", tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday);
+  memcpy( bext.origination_date, tmp_str, 10);
+
+  // The Origination Time field is always exactly 8 characters long
+  snprintf( tmp_str, sizeof(tmp_str), "%2.2d:%2.2d:%2.2d", tm.tm_hour, tm.tm_min, tm.tm_sec);
+  memcpy( bext.origination_time, tmp_str, 8);
+
+  // Calculate the Unix timestamp for midnight
+  tm.tm_hour = 0;
+  tm.tm_min = 0;
+  tm.tm_sec = 0;
+  midnight = mktime(&tm);
+
+  // Calculate the number of samples since midnight
+  sample_count = (file_start->tv_sec - midnight) * sfinfo.samplerate;
+  sample_count += ((float)file_start->tv_usec / 1000000) * sfinfo.samplerate;
+  bext.time_reference_high = (sample_count >> 32) & 0xffffffff;
+  bext.time_reference_low = sample_count & 0xffffffff;
+
+  // We are using version 0 - not using UMID, levels or coding history
+  bext.version = 0;
+
+  // Send the metadata to libsndfile
+  if (sf_command(sndfile, SFC_SET_BROADCAST_INFO, &bext, sizeof(bext)) != SF_TRUE) {
+    rotter_error( "Error: failed to set Broadcast Wave Extension metadata: %s",
+                 sf_strerror( sndfile ));
+  }
+}
+
 static void* open_sndfile(const char* filepath, struct timeval *file_start)
 {
   SNDFILE *sndfile = NULL;
@@ -130,10 +186,10 @@ static void* open_sndfile(const char* filepath, struct timeval *file_start)
 
   rotter_debug("Opening libsndfile output file: %s", filepath);
   sndfile = sf_open( filepath, SFM_RDWR, &sfinfo );
-  
+
   // Some output formats, like flac and vorbis, do not support read/write mode
   // There is no stable way to trap this specific error in the libsndfile public API
-  // so if we fail to open the file, try once more in write-only mode. 
+  // so if we fail to open the file, try once more in write-only mode.
   //
   // Using fallback, rather than hard-coding the current capabilities of each format, so that
   // we will automatically benefit if libsndfile is extended to provide read/write mode for
@@ -146,11 +202,14 @@ static void* open_sndfile(const char* filepath, struct timeval *file_start)
     read_write_mode = 0;
     sndfile = sf_open( filepath, SFM_WRITE, &sfinfo );
   }
- 
+
   if (sndfile==NULL) {
     rotter_error( "Failed to open output file: %s", sf_strerror(NULL) );
     return NULL;
   }
+
+  // Set the metadata (for Broadcast Wave Format)
+  write_bext(sndfile, file_start);
 
   // Seek to the end of the file, so that we don't overwrite any existing audio
   // We can only do this if the file is opened in read/write mode. Not all formats
