@@ -28,33 +28,19 @@
 #include <limits.h>
 #include <unistd.h>
 #include <errno.h>
-#include <netdb.h>
 
 #include "rotter.h"
 #include "config.h"
 
 
 /*
-  I don't especially like ID3v1 but it is really simple.
+  ID3v1.0 Structure
   Informal specification: http://www.id3.org/id3v1.html
+
+  I don't especially like ID3v1 but it is really simple.
+  Adding support for ID3v2 would be a lot more code.  
 */
 
-
-#ifndef HOST_NAME_MAX
-#ifdef _POSIX_HOST_NAME_MAX
-#define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
-#else
-#define HOST_NAME_MAX (256)
-#endif
-#endif
-
-#ifndef DOMAIN_NAME_MAX
-#define DOMAIN_NAME_MAX (1024)
-#endif
-
-
-
-// ------- ID3v1.0 Structure -------
 
 typedef struct id3v1_s
 {
@@ -68,47 +54,9 @@ typedef struct id3v1_s
 } id3v1_t;
 
 
-static char* gethostname_fqdn()
-{
-  char hostname[ HOST_NAME_MAX ];
-  char domainname[ DOMAIN_NAME_MAX ];
-  struct hostent  *hp;
-
-  if (gethostname( hostname, HOST_NAME_MAX ) < 0) {
-    // Failed
-    return NULL;
-  }
-
-  // If it contains a dot, then assume it is a FQDN
-  if (strchr(hostname, '.') != NULL)
-    return strdup( hostname );
-
-  // Try resolving the hostname into a FQDN
-  if ( (hp = gethostbyname( hostname )) != NULL ) {
-    if (strchr(hp->h_name, '.') != NULL)
-      return strdup( hp->h_name );
-  }
-
-  // Try appending our domain name
-  if ( getdomainname( domainname, DOMAIN_NAME_MAX) == 0
-       && strlen( domainname ) )
-  {
-    int fqdn_len = strlen( hostname ) + strlen( domainname ) + 2;
-    char *fqdn = malloc( fqdn_len );
-    snprintf( fqdn, fqdn_len, "%s.%s", hostname, domainname );
-    return fqdn;
-  }
-
-
-  // What else can we try?
-  return NULL;
-}
-
-
 // Write an ID3v1 tag to a file handle
 static void write_id3v1(FILE* file, struct timeval *file_start)
 {
-  char *hostname;
   char year[5];
   struct tm tm;
   id3v1_t id3;
@@ -121,7 +69,6 @@ static void write_id3v1(FILE* file, struct timeval *file_start)
   // Get a breakdown of the time recording started at
   localtime_r( &file_start->tv_sec, &tm );
 
-
   // Header
   id3.tag[0] = 'T';
   id3.tag[1] = 'A';
@@ -131,15 +78,12 @@ static void write_id3v1(FILE* file, struct timeval *file_start)
   snprintf( id3.title, sizeof(id3.title)-1, "Recorded %4.4d-%2.2d-%2.2d %2.2d:%2.2d",
         tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, tm.tm_min );
 
-  // Artist - hostname
-  hostname = gethostname_fqdn();
-  if (hostname) {
-    strncpy( id3.artist, hostname, sizeof(id3.artist)-1 );
-    free(hostname);
+  // Artist / Originator
+  if (originator) {
+    strncpy( id3.artist, originator, sizeof(id3.artist)-1 );
   }
 
   // Album - unused
-
 
   // Year
   sprintf( year, "%4.4d" , tm.tm_year+1900);

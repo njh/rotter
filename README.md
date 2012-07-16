@@ -45,6 +45,7 @@ Usage
        -c <channels> Number of channels
        -n <name>     Name for this JACK client
        -N <filename> Name for archive files (default 'archive')
+       -O <name>     Originator (artist) name for metadata (default is hostname)
        -p <secs>     Period of each archive file (in seconds, default 3600)
        -d <hours>    Delete files in directory older than this
        -R <secs>     Length of the ring buffer (in seconds, default 2.00)

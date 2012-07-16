@@ -49,6 +49,7 @@ int verbose = 0;        // Increase number of logging messages
 int utc = 0;            // Use UTC rather than local time for filenames
 char* file_layout = DEFAULT_FILE_LAYOUT;  // File layout: Flat files or folder hierarchy ?
 char* archive_name = NULL;      // Archive file name
+char* originator = NULL;        // Originator (aka Artist) field value (default is hostname)
 int channels = DEFAULT_CHANNELS;    // Number of input channels
 float rb_duration = DEFAULT_RB_LEN;   // Duration of ring buffer
 char *root_directory = NULL;      // Root directory of archives
@@ -566,6 +567,7 @@ static void usage()
   printf("   -c <channels> Number of channels\n");
   printf("   -n <name>     Name for this JACK client (default '%s')\n", DEFAULT_CLIENT_NAME);
   printf("   -N <filename> Name for archive files (default '%s')\n", DEFAULT_ARCHIVE_NAME);
+  printf("   -O <name>     Originator (artist) name for metadata (default is hostname)\n");
   printf("   -p <secs>     Period of each archive file (in seconds, default %d)\n", DEFAULT_ARCHIVE_PERIOD_SECONDS);
   printf("   -d <hours>    Delete files in directory older than this\n");
   printf("   -R <secs>     Length of the ring buffer (in seconds, default %2.2f)\n", DEFAULT_RB_LEN);
@@ -618,13 +620,14 @@ int main(int argc, char *argv[])
   setbuf(stdout, NULL);
 
   // Parse Switches
-  while ((opt = getopt(argc, argv, "al:r:n:N:p:jf:b:d:c:R:L:s:uvqh")) != -1) {
+  while ((opt = getopt(argc, argv, "al:r:n:N:O:p:jf:b:d:c:R:L:s:uvqh")) != -1) {
     switch (opt) {
       case 'a':  autoconnect = 1; break;
       case 'l':  connect_left = optarg; break;
       case 'r':  connect_right = optarg; break;
       case 'n':  client_name = optarg; break;
       case 'N':  archive_name = optarg; break;
+      case 'O':  originator = strdup(optarg); break;
       case 'p':  archive_period_seconds = atol(optarg); break;
       case 'j':  jack_opt |= JackNoStartServer; break;
       case 'f':  format_name = rotter_str_tolower(optarg); break;
@@ -688,6 +691,11 @@ int main(int argc, char *argv[])
     }
   } else {
     output_format = &format_list[0];
+  }
+
+  // No originator defined?
+  if (!originator) {
+    originator = rotter_get_hostname();
   }
 
   // Initialise JACK
@@ -764,6 +772,10 @@ cleanup:
   // Shut down encoder
   if (encoder)
     encoder->deinit();
+
+  // Free the originator string
+  if (originator)
+    free(originator);
 
   // Did something go wrong?
   if (rotter_run_state == ROTTER_STATE_QUITING) {

@@ -9,4 +9,5 @@ rotter_SOURCES = \
 	lame.c \
 	mpegaudiofile.c \
 	dir.c \
-	deletefiles.c
+	deletefiles.c \
+	hostname.c

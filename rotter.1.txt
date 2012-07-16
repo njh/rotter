@@ -63,6 +63,10 @@ OPTIONS
 -N <filename>::
         Choose a filename prefix for the archive files created (default 'archive').
 
+-O <originator>::
+        Specify the value for the originator / artist field in the metadata of 
+        the output files (the default the hostname).
+
 -p <secs>::
         Specify the period of each archive file in seconds. The default is 1 hour
         (-p 3600). As an example, this can be used to make rotter create a new
