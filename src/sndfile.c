@@ -254,13 +254,15 @@ encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrat
   // Lookup inforamtion about the format and subtype
   format_info.format = sfinfo.format & SF_FORMAT_TYPEMASK;
   if (sf_command(NULL, SFC_GET_FORMAT_INFO, &format_info, sizeof(format_info))) {
-    rotter_error( "Failed to get format information for: 0x%4.4x", format_info.format);
+    rotter_fatal( "Failed to get format information for: %s", format->name);
+    rotter_info( "=> Is support for it compiled into libsndfile?");
     return NULL;
   }
 
   subformat_info.format = sfinfo.format & SF_FORMAT_SUBMASK;
   if (sf_command (NULL, SFC_GET_FORMAT_INFO, &subformat_info, sizeof(subformat_info))) {
-    rotter_error( "Failed to get sub-format information for: 0x%4.4x", subformat_info.format);
+    rotter_fatal( "Failed to get sub-format information for: %s", format->name);
+    rotter_info( "=> Is support for it compiled into libsndfile?");
     return NULL;
   }
 
