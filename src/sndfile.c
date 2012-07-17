@@ -213,6 +213,15 @@ static void* open_sndfile(const char* filepath, struct timeval *file_start)
   // Set the metadata (for Broadcast Wave Format)
   write_bext(sndfile, file_start);
 
+  // Is VBR mode enabled?
+  if (vbr_quality >= 0) {
+    if (!sf_command(sndfile, SFC_SET_VBR_ENCODING_QUALITY, &vbr_quality, sizeof(vbr_quality))) {
+      rotter_error( "Failed to set VBR quality." );
+      sf_close(sndfile);
+      return NULL;
+    }
+  }
+
   // Seek to the end of the file, so that we don't overwrite any existing audio
   // We can only do this if the file is opened in read/write mode. Not all formats
   // support this.
@@ -268,7 +277,6 @@ encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrat
     return NULL;
   }
 
-
   // Fill in the rest of the SF_INFO data structure
   sfinfo.samplerate = jack_get_sample_rate( client );
   sfinfo.channels = channels;
@@ -276,6 +284,9 @@ encoder_funcs_t* init_sndfile( output_format_t* format, int channels, int bitrat
   // Display info about input/output
   rotter_debug( "  Input: %d Hz, %d channels", sfinfo.samplerate, sfinfo.channels );
   rotter_debug( "  Output: %s, %s.", format_info.name, subformat_info.name );
+  if (vbr_quality >= 0) {
+    rotter_debug( "  VBR Quality: %2.2d", vbr_quality );
+  }
 
   // Check that the format is valid
   if (!sf_format_check(&sfinfo)) {

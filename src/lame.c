@@ -3,7 +3,7 @@
   lame.c
 
   rotter: Recording of Transmission / Audio Logger
-  Copyright (C) 2006-2010  Nicholas J. Humfrey
+  Copyright (C) 2006-2012  Nicholas J. Humfrey
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -163,6 +163,8 @@ encoder_funcs_t* init_lame( output_format_t* format, int channels, int bitrate )
     return NULL;
   }
 
+  rotter_info( "Encoding using liblame version %s.", get_lame_version() );
+
   if ( 0 > lame_set_num_channels( lame_opts, channels ) ) {
     rotter_error("lame error: failed to set number of channels.");
     deinit_lame();
@@ -181,10 +183,34 @@ encoder_funcs_t* init_lame( output_format_t* format, int channels, int bitrate )
     return NULL;
   }
 
-  if ( 0 > lame_set_brate( lame_opts, bitrate) ) {
-    rotter_error("lame error: failed to set bitrate.");
-    deinit_lame();
-    return NULL;
+  // Is VBR mode enabled?
+  if (vbr_quality < 0) {
+    if ( 0 > lame_set_VBR( lame_opts, vbr_off) ) {
+      rotter_error("lame error: failed to turn off VBR.");
+      deinit_lame();
+      return NULL;
+    }
+
+    if ( 0 > lame_set_brate( lame_opts, bitrate) ) {
+      rotter_error("lame error: failed to set bitrate.");
+      deinit_lame();
+      return NULL;
+    }
+  } else {
+    int q = 10 - vbr_quality;
+
+    rotter_debug("  Turning on VBR mode (q=%d)", q);
+    if ( 0 > lame_set_VBR( lame_opts, vbr_default) ) {
+      rotter_error("lame error: failed to turn on VBR.");
+      deinit_lame();
+      return NULL;
+    }
+
+    if ( 0 > lame_set_VBR_q( lame_opts, q) ) {
+      rotter_error("lame error: failed to set VBR quality.");
+      deinit_lame();
+      return NULL;
+    }
   }
 
   if ( 0 > lame_init_params( lame_opts ) ) {
@@ -193,11 +219,10 @@ encoder_funcs_t* init_lame( output_format_t* format, int channels, int bitrate )
     return NULL;
   }
 
-
-  rotter_info( "Encoding using liblame version %s.", get_lame_version() );
   rotter_debug( "  Input: %d Hz, %d channels",
             lame_get_in_samplerate(lame_opts),
             lame_get_num_channels(lame_opts));
+
   rotter_debug( "  Output: %s Layer 3, %d kbps, %s",
             lame_get_version_name(lame_opts),
             lame_get_brate(lame_opts),

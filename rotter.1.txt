@@ -53,6 +53,10 @@ OPTIONS
         Select the bitrate (in kbps) of the log file. This parameter
         is only supported by bitstream formats (MPEG Audio).
 
+-V <quality>::
+        Enable VBR and set the encoding quality (0 lowest, 10 highest).
+        Currently only the MP3 and Vorbis codecs support this option.
+
 -c <channels>::
         Set the number of input channels to be logged. This number of
         JACK ports will be created. Should either 1 or 2.

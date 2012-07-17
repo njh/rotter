@@ -161,6 +161,7 @@ extern jack_port_t *inport[2];
 extern jack_client_t *client;
 extern int channels;
 extern char *originator;
+extern double vbr_quality;
 extern RotterRunState rotter_run_state;
 extern rotter_ringbuffer_t *ringbuffers[2];
 extern long archive_period_seconds;

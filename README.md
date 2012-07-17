@@ -42,6 +42,7 @@ Usage
        -r <port>     Connect the right input to this port
        -f <format>   Format of recording (see list below)
        -b <bitrate>  Bitrate of recording (bitstream formats only)
+       -V <quality>  VBR quality, for formats that support it (0 lowest, 10 highest)
        -c <channels> Number of channels
        -n <name>     Name for this JACK client
        -N <filename> Name for archive files (default 'archive')
