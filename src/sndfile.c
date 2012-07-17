@@ -173,8 +173,10 @@ static void write_bext(SNDFILE* sndfile, struct timeval *file_start)
 
   // Send the metadata to libsndfile
   if (sf_command(sndfile, SFC_SET_BROADCAST_INFO, &bext, sizeof(bext)) != SF_TRUE) {
-    rotter_error( "Error: failed to set Broadcast Wave Extension metadata: %s",
-                 sf_strerror( sndfile ));
+    if (sf_error(sndfile) != SF_ERR_NO_ERROR) {
+      rotter_error( "Error: failed to set Broadcast Wave Extension metadata: %s",
+                    sf_strerror( sndfile ));
+    }
   }
 }
 
