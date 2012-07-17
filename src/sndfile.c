@@ -198,7 +198,7 @@ static void* open_sndfile(const char* filepath, struct timeval *file_start)
   // In write-only mode, we cannot append to existing files, so their contents, if they exist
   // will be clobbered, but this is the original behaviour of rotter, so isn't a regression.
   if (sndfile==NULL) {
-    rotter_info( "Failed to open output file in read/write mode, so trying write-only" );
+    rotter_debug( "Failed to open output file in read/write mode, so trying write-only" );
     read_write_mode = 0;
     sndfile = sf_open( filepath, SFM_WRITE, &sfinfo );
   }
