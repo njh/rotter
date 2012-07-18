@@ -622,7 +622,7 @@ int main(int argc, char *argv[])
   setbuf(stdout, NULL);
 
   // Parse Switches
-  while ((opt = getopt(argc, argv, "al:r:n:N:O:p:jf:b:d:c:R:L:s:uV:vqh")) != -1) {
+  while ((opt = getopt(argc, argv, "al:r:n:N:O:p:jf:b:Q:d:c:R:L:s:uvqh")) != -1) {
     switch (opt) {
       case 'a':  autoconnect = 1; break;
       case 'l':  connect_left = optarg; break;
@@ -634,13 +634,13 @@ int main(int argc, char *argv[])
       case 'j':  jack_opt |= JackNoStartServer; break;
       case 'f':  format_name = rotter_str_tolower(optarg); break;
       case 'b':  bitrate = atoi(optarg); break;
+      case 'Q':  vbr_quality = atof(optarg); break;
       case 'd':  delete_hours = atoi(optarg); break;
       case 'c':  channels = atoi(optarg); break;
       case 'R':  rb_duration = atof(optarg); break;
       case 'L':  file_layout = optarg; break;
       case 's':  sync_period = atoi(optarg); break;
       case 'u':  utc = 1; break;
-      case 'V':  vbr_quality = atof(optarg); break;
       case 'v':  verbose = 1; break;
       case 'q':  quiet = 1; break;
       default:  usage(); break;

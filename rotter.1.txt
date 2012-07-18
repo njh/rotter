@@ -53,7 +53,7 @@ OPTIONS
         Select the bitrate (in kbps) of the log file. This parameter
         is only supported by bitstream formats (MPEG Audio).
 
--V <quality>::
+-Q <quality>::
         Enable VBR and set the encoding quality (0 lowest, 10 highest).
         Currently only the MP3 and Vorbis codecs support this option.
 
