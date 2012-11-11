@@ -176,7 +176,7 @@ void rotter_log( RotterLogLevel level, const char* fmt, ... );
 // In dir.c
 int rotter_directory_exists(const char * filepath);
 int rotter_mkdir_p( const char* dir );
-int rotter_mkdir_for_file( char* filepath );
+int rotter_mkdir_for_file( const char* filepath );
 
 // In hostname.c
 char* rotter_get_hostname();

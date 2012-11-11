@@ -90,21 +90,32 @@ int rotter_mkdir_p( const char* dir )
 }
 
 
-int rotter_mkdir_for_file( char* filepath )
+int rotter_mkdir_for_file( const char* filepath )
 {
-  char* dir = dirname(filepath);
-  if (dir == NULL) {
+  char *dir, *buf;
+  int result = 0;
+
+  // Duplicate the filepath, as dirname may modify the string
+  buf = strdup(filepath);
+  if (buf == NULL) {
     return -1;
   }
 
-  if (rotter_directory_exists( dir )) {
-    return 0;
-  } else {
-    rotter_debug("Creating directory: %s", dir);
-    if (rotter_mkdir_p( dir ))
-      return -1;
+  // Remove the filename from end of the filepath
+  dir = dirname(buf);
+  if (dir == NULL) {
+    free(buf);
+    return -1;
   }
 
-  // Success
-  return 0;
+  // Create directory if it didn't exist
+  if (!rotter_directory_exists(dir)) {
+    rotter_debug("Creating directory: %s", dir);
+    if (rotter_mkdir_p(dir)) {
+      result = -1;
+    }
+  }
+
+  free(buf);
+  return result;
 }
