@@ -748,7 +748,7 @@ int main(int argc, char *argv[])
 
   while( rotter_run_state == ROTTER_STATE_RUNNING ) {
     time_t now = time(NULL);
-    int samples_processed = rotter_process_audio(encoder);
+    int samples_processed = rotter_process_audio();
     if (samples_processed <= 0) {
       usleep(sleep_time * 1000000);
     }
