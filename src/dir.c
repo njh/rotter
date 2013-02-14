@@ -57,33 +57,34 @@ int rotter_directory_exists(const char * filepath)
 
 int rotter_mkdir_p( const char* dir )
 {
-  int result = 0;
+  int result;
 
-  if (mkdir(dir, DEFAULT_DIR_MODE) < 0) {
-    if (errno == ENOENT) {
-      // ENOENT (a parent directory doesn't exist)
-      char* parent = strdup( dir );
-      int i;
+  result = mkdir(dir, DEFAULT_DIR_MODE);
+  if (result && errno == ENOENT) {
+    // ENOENT (a parent directory doesn't exist)
+    char* parent = strdup( dir );
+    int i;
 
-      // Create parent directories recursively
-      for(i=strlen(parent); i>0; i--) {
-        if (parent[i]=='/') {
-          parent[i]=0;
-          result = rotter_mkdir_p( parent );
-          break;
-        }
+    // Create parent directories recursively
+    for(i=strlen(parent); i>0; i--) {
+      if (parent[i]=='/') {
+        parent[i]=0;
+        result = rotter_mkdir_p( parent );
+        break;
       }
-
-      free(parent);
-
-      // Try again to create the directory
-      if (result==0) {
-        result = mkdir(dir, DEFAULT_DIR_MODE);
-      }
-
-    } else {
-      result = -1;
     }
+
+    free(parent);
+
+    // Try again to create the directory
+    if (result == 0) {
+      result = mkdir(dir, DEFAULT_DIR_MODE);
+    }
+  }
+
+  if (result && errno == EEXIST) {
+    // Directory already exists - good
+    result = 0;
   }
 
   return result;
