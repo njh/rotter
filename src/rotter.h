@@ -120,6 +120,8 @@ typedef struct rotter_ringbuffer_s
     jack_ringbuffer_t *buffer[2];
     int close_file;                  // Flag to indicate that file should be closed
     int overflow;                    // Flag to indicate that ringbuffer overflowed
+    jack_nframes_t frame_offset;
+    jack_nframes_t start_offset;
 } rotter_ringbuffer_t;
 
 typedef struct encoder_funcs_s
