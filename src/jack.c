@@ -126,7 +126,6 @@ static
 int callback_jack(jack_nframes_t nframes, void *arg)
 {
   jack_nframes_t read_pos = 0;
-  jack_nframes_t cur_offset = jack_last_frame_time(client);
   jack_nframes_t rate = jack_get_sample_rate(client);
 
   if (!active_ringbuffer) {
@@ -152,7 +151,6 @@ int callback_jack(jack_nframes_t nframes, void *arg)
     int result;
     if (samples + nframes >= next_switch) {
       jack_nframes_t to_cur_rb = (jack_nframes_t)(next_switch - samples);
-      jack_time_t us = jack_frames_to_time(client, cur_offset + to_cur_rb);
       result = write_to_ringbuffer(active_ringbuffer, read_pos, to_cur_rb);
       if (result)
         return result;
