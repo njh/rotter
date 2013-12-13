@@ -83,10 +83,40 @@ static int write_to_ringbuffer(rotter_ringbuffer_t *rb, jack_nframes_t start,
     }
   }
 
+  rb->frame_offset += nframes;
   // Success
   return 0;
 }
 
+static
+int switch_ringbuffer(struct timeval *tv, time_t period) {
+  rotter_ringbuffer_t *prev = active_ringbuffer;
+  if (!active_ringbuffer || active_ringbuffer == ringbuffers[1]) {
+    active_ringbuffer = ringbuffers[0];
+  } else if (active_ringbuffer == ringbuffers[0]) {
+    active_ringbuffer = ringbuffers[1];
+  } else {
+    rotter_fatal("Ring buffers out of sync.");
+    return 1;
+  }
+
+  if (prev) {
+    struct timeval t = prev->file_start;
+    // We should now be in sync with an even second. Do a bit of
+    // rounding here though to ensure that we get sane file names.
+    t.tv_sec += (long)(archive_period_seconds - (prev->start_offset / jack_get_sample_rate(client)) + 0.1);
+    t.tv_usec = 0;
+    active_ringbuffer->file_start = t;
+    active_ringbuffer->period_start = start_of_period(t.tv_sec);
+  } else {
+    active_ringbuffer->file_start = *tv;
+    active_ringbuffer->period_start = period;
+  }
+  active_ringbuffer->frame_offset = 0;
+  active_ringbuffer->start_offset = 0;
+
+  return 0;
+}
 
 /* Callback called by JACK when audio is available
    Use as little CPU time as possible, just copy accross the audio
@@ -95,61 +125,42 @@ static int write_to_ringbuffer(rotter_ringbuffer_t *rb, jack_nframes_t start,
 static
 int callback_jack(jack_nframes_t nframes, void *arg)
 {
-  jack_nframes_t frames_until_whole_second = 0;
   jack_nframes_t read_pos = 0;
-  time_t this_period;
-  struct timeval tv;
+  jack_nframes_t rate = jack_get_sample_rate(client);
 
-  // Get the current time
-  if (gettimeofday(&tv, NULL)) {
-    rotter_fatal("Failed to gettimeofday(): %s", strerror(errno));
-    return 1;
-  }
+  if (!active_ringbuffer) {
+    struct timeval tv;
+    // Get the current time
+    if (gettimeofday(&tv, NULL)) {
+      rotter_fatal("Failed to gettimeofday(): %s", strerror(errno));
+      return 1;
+    }
 
-  // FIXME: this won't work if rotter is started *just* before the archive period
-  if (active_ringbuffer) {
-    unsigned int duration;
+    time_t period = start_of_period(tv.tv_sec);
+    // First time we set start_offset to compensate for the fact
+    // that we are in the middle of an archive period.
+    double diff = difftime(tv.tv_sec, period) + tv.tv_usec / 1000000.0;
+    switch_ringbuffer(&tv, period);
+    active_ringbuffer->start_offset = (jack_nframes_t)(diff * rate);
+  } else {
+    // Check if we've obtained the samples required to enter a
+    // new archive period. If so, switch ring buffer.
+    jack_nframes_t samples = active_ringbuffer->frame_offset +
+                              active_ringbuffer->start_offset;
+    jack_nframes_t next_switch = (jack_nframes_t)(rate * archive_period_seconds);
     int result;
-
-    // Calculate the number of frames until we have a whole number of seconds
-    // FIXME: what if the callback buffer contains over 1 second of audio?
-    frames_until_whole_second = ceil(jack_get_sample_rate( client ) *
-                                ((double)(1000000 - tv.tv_usec) / 1000000));
-
-    if (frames_until_whole_second < nframes) {
-      result = write_to_ringbuffer(active_ringbuffer, read_pos, frames_until_whole_second);
+    if (samples + nframes >= next_switch) {
+      jack_nframes_t to_cur_rb = (jack_nframes_t)(next_switch - samples);
+      result = write_to_ringbuffer(active_ringbuffer, read_pos, to_cur_rb);
       if (result)
         return result;
-
-      // Calculate the duration of the audio that we wrote
-      // and add it on to the current time
-      duration = ((double)frames_until_whole_second /
-                 jack_get_sample_rate( client )) * 1000000;
-      tv.tv_usec += (duration - 1000000);
-      tv.tv_sec += 1;
-
-      nframes -= frames_until_whole_second;
-      read_pos += frames_until_whole_second;
-    }
-  }
-
-
-  // Time to swap ring buffers, if we are now in a new archive period
-  this_period = start_of_period(tv.tv_sec);
-  if (active_ringbuffer == NULL || active_ringbuffer->period_start != this_period) {
-    if (active_ringbuffer) {
+      nframes -= to_cur_rb;
+      read_pos += to_cur_rb;
       active_ringbuffer->close_file = 1;
+      switch_ringbuffer(NULL, 0);
     }
-    if (active_ringbuffer == ringbuffers[0]) {
-      active_ringbuffer = ringbuffers[1];
-    } else {
-      active_ringbuffer = ringbuffers[0];
-    }
-    active_ringbuffer->file_start = tv;
-    active_ringbuffer->period_start = this_period;
   }
 
-  // Finally, write any frames after the 1 second boundary
   return write_to_ringbuffer(active_ringbuffer, read_pos, nframes);
 }
 
