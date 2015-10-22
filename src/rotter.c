@@ -3,7 +3,7 @@
   rotter.c
 
   rotter: Recording of Transmission / Audio Logger
-  Copyright (C) 2006-2012  Nicholas J. Humfrey
+  Copyright (C) 2006-2015  Nicholas J. Humfrey
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -317,7 +317,7 @@ static int rotter_open_file(rotter_ringbuffer_t *ringbuffer)
 
   // Make sure the parent directory exists
   if (rotter_mkdir_for_file(filepath)) {
-    rotter_fatal( "Failed to create parent directories for filepath: %s (%s)", 
+    rotter_fatal( "Failed to create parent directories for filepath: %s (%s)",
                   filepath, strerror(errno) );
     return -1;
   }
@@ -393,6 +393,12 @@ static int rotter_process_audio()
       ringbuffer->overflow = 0;
     }
 
+    // Has there been a jackd xrun?
+    if (ringbuffer->xrun_usecs) {
+      rotter_error( "jackd experienced a %d microsecond buffer xrun.", ringbuffer->xrun_usecs);
+      ringbuffer->xrun_usecs = 0;
+    }
+
     // Read some audio from the buffer
     samples = rotter_read_from_ringbuffer( ringbuffer, output_format->samples_per_frame );
     if (samples > 0) {
@@ -465,6 +471,7 @@ static int init_ringbuffers()
     ringbuffers[b]->period_start = 0;
     ringbuffers[b]->file_handle = NULL;
     ringbuffers[b]->overflow = 0;
+    ringbuffers[b]->xrun_usecs = 0;
     ringbuffers[b]->close_file = 0;
     ringbuffers[b]->buffer[0] = NULL;
     ringbuffers[b]->buffer[1] = NULL;

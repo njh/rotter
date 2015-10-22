@@ -3,7 +3,7 @@
   jack.c
 
   rotter: Recording of Transmission / Audio Logger
-  Copyright (C) 2006-2010  Nicholas J. Humfrey
+  Copyright (C) 2006-2015  Nicholas J. Humfrey
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -32,6 +32,8 @@
 #include <getopt.h>
 #include <limits.h>
 #include <errno.h>
+
+#include <jack/statistics.h>
 
 #include "config.h"
 #include "rotter.h"
@@ -154,6 +156,19 @@ int callback_jack(jack_nframes_t nframes, void *arg)
 }
 
 
+// Callback called by JACK when jackd is experiences a buffer overrun/underrun
+static
+int xrun_callback_jack(void *arg)
+{
+  jack_client_t *client = (jack_client_t*)arg;
+
+  if (active_ringbuffer) {
+    active_ringbuffer->xrun_usecs += jack_get_xrun_delayed_usecs(client);
+  }
+
+  return 0;
+}
+
 // Callback called by JACK when jackd is shutting down
 static
 void shutdown_callback_jack(void *arg)
@@ -245,8 +260,11 @@ int init_jack( const char* client_name, jack_options_t jack_opt )
     }
   }
 
+  // Register xrun callback
+  jack_set_xrun_callback(client, xrun_callback_jack, client);
+
   // Register shutdown callback
-  jack_on_shutdown(client, shutdown_callback_jack, NULL );
+  jack_on_shutdown(client, shutdown_callback_jack, NULL);
 
   // Register callback
   if (jack_set_process_callback(client, callback_jack, NULL)) {

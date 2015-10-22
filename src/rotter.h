@@ -3,7 +3,7 @@
   rotter.h
 
   rotter: Recording of Transmission / Audio Logger
-  Copyright (C) 2006-2012  Nicholas J. Humfrey
+  Copyright (C) 2006-2015  Nicholas J. Humfrey
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU General Public License
@@ -120,6 +120,7 @@ typedef struct rotter_ringbuffer_s
     jack_ringbuffer_t *buffer[2];
     int close_file;                  // Flag to indicate that file should be closed
     int overflow;                    // Flag to indicate that ringbuffer overflowed
+    int xrun_usecs;                  // Delay in microseconds due to buffer over/underruns (0 if no xrun)
 } rotter_ringbuffer_t;
 
 typedef struct encoder_funcs_s
