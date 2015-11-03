@@ -235,7 +235,7 @@ int init_jack( const char* client_name, jack_options_t jack_opt )
   jack_status_t status;
 
   // Register with Jack
-  if ((client = jack_client_open(client_name, jack_opt, &status)) == 0) {
+  if ((client = jack_client_open(client_name, jack_opt, &status)) == NULL) {
     rotter_fatal("Failed to start jack client: 0x%x", status);
     return -1;
   }
