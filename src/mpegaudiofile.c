@@ -132,7 +132,7 @@ void* open_mpegaudio_file( const char* filepath, struct timeval *file_start )
   file = fopen( filepath, "ab" );
   if (file==NULL) {
     rotter_error( "Failed to open output file: %s", strerror(errno) );
-    return 0;
+    return NULL;
   }
 
   return file;
