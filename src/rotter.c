@@ -267,7 +267,7 @@ static int time_to_filepath_custom( struct tm *tm, char * file_layout, char* fil
   size_t len;
 
   // Copy root directory path and separator into new filepath
-  if (snprintf( filepath, MAX_FILEPATH_LEN, "%s/", root_directory ) <= 0);
+  if (snprintf( filepath, MAX_FILEPATH_LEN, "%s/", root_directory ) <= 0)
     return 1;
 
   // Get the length of the root directory
