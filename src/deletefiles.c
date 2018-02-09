@@ -122,7 +122,7 @@ static void deletefiles_in_dir( const char* dirpath, dev_t device, time_t timest
       delete_file( newpath, device, timestamp );
 
     } else {
-      rotter_error( "Warning: not a file or a directory: %s" );
+      rotter_error( "Warning: not a file or a directory: %s", newpath );
     }
     free( newpath );
 
