@@ -1,6 +1,6 @@
 Rotter
 ======
-Nicholas J. Humfrey <njh@aelius.com>
+Nicholas J. Humfrey
 
 For the latest stable version of Rotter, please see:
 http://www.aelius.com/njh/rotter/
